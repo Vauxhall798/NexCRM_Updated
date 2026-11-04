@@ -11,6 +11,6 @@
     "start": "node --no-warnings --experimental-strip-types --experimental-sqlite src/index.ts",
     "seed": "node --no-warnings --experimental-strip-types --experimental-sqlite prisma/seed.ts",
     "setup": "node --no-warnings --experimental-strip-types --experimental-sqlite prisma/seed.ts",
-    "test": "node --no-warnings --experimental-strip-types --experimental-sqlite --test src/__tests__/conversion.test.ts"
+    "test": "node --no-warnings --experimental-strip-types --experimental-sqlite --test src/__tests__/*.test.ts"
   }
 }

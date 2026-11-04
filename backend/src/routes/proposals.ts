@@ -143,7 +143,708 @@ export interface StructuredProposalContent {
   requirementsAnswered?: Array<{ request: string; response: string; where: string }>;
 }
 
-function buildNexIntMasterProposal(params: {
+export function synthesizeDynamicDomainContent(params: {
+  company_name: string;
+  recipient_name: string;
+  project_title: string;
+  service_type: string;
+  budget: number;
+  currency: string;
+  timeline_weeks: number;
+  user_prompt: string;
+  key_requirements: string;
+}): StructuredProposalContent {
+  const {
+    company_name,
+    recipient_name,
+    project_title,
+    service_type,
+    currency,
+    user_prompt = '',
+    key_requirements = '',
+  } = params;
+
+  const combined = `${user_prompt} ${key_requirements} ${project_title} ${service_type}`.toLowerCase();
+
+  // Extract custom prompt lines
+  const rawLines = `${user_prompt}\n${key_requirements}`
+    .split(/\n|•|;/)
+    .map((s) => s.replace(/^[-*0-9.)\s]+/, '').trim())
+    .filter((s) => s.length > 5);
+
+  const customFeature1 = rawLines[0] || `${project_title} core automation workflows`;
+  const customFeature2 = rawLines[1] || `Intelligent analytics and real-time reporting`;
+  const customFeature3 = rawLines[2] || `Role-based access, security controls, and audit tracking`;
+  const customFeature4 = rawLines[3] || `Multi-channel notifications and seamless external integrations`;
+
+  const isHealthcare =
+    /health|patient|doctor|clinic|hospital|triage|medical|telehealth|symptom|ehr|emr|prescription/i.test(
+      combined
+    );
+  const isDataEng =
+    /data engineering|pipeline|etl|elt|lakehouse|warehouse|snowflake|databricks|kafka|streaming|dbt|bigquery/i.test(
+      combined
+    ) || service_type === 'Data Engineering';
+  const isFintech =
+    /fintech|bank|payment|invoice|po\b|purchase order|treasury|fraud|loan|credit|crypto|trading|wallet|dispute|ledger|reconcil/i.test(
+      combined
+    );
+  const isEcommerce =
+    /ecommerce|e-commerce|store|cart|checkout|shop|product|catalog|order|marketplace|inventory/i.test(
+      combined
+    );
+  const isLogistics =
+    /logistics|supply chain|fleet|route|driver|dispatch|shipment|freight|delivery|tracking/i.test(
+      combined
+    );
+  const isAiAgent =
+    /ai agent|conversational|chatbot|llm|rag|nlp|virtual assistant|copilot|generative ai/i.test(
+      combined
+    ) || service_type === 'AI services';
+
+  if (isHealthcare) {
+    return {
+      heroHeadline: `The ${company_name} ${project_title}: Intelligent Patient Care, Clinical Triaging & Automated Practice Management.`,
+      heroSubheadline: user_prompt.trim()
+        ? `${user_prompt.trim()} — engineered by NexInt AI as a secure, HIPAA-compliant healthcare application unifying patient triage, appointment scheduling, and clinical workflows.`
+        : `Transform patient care and clinic efficiency: automated AI symptom assessment, instant appointment booking with doctor matching, real-time EHR integration, and proactive care reminders.`,
+      whatSummary: `${project_title}: responsive web application & mobile patient portal with secure EHR/EMR connectivity`,
+      whoItServes: `Patients, triage nurses, attending physicians, clinic administrators, and practice managers`,
+      aiAndAutomationSummary: `14 clinical AI capabilities and 14 automated healthcare workflows, from conversational symptom intake to insurance pre-check and automated follow-up care`,
+      worksWithSummary: `EHR / EMR systems (Epic, Cerner, FHIR / HL7 APIs), WhatsApp / SMS gateways, Google Calendar / Outlook, and payment gateways`,
+      runningCostSummary:
+        currency === 'INR'
+          ? `About ₹25,000–35,000 / month from go-live: HIPAA-grade cloud hosting ₹14,000, managed SLA support ₹15,000, and AI token consumption ~₹5,000`
+          : `Predictable monthly operations: dedicated healthcare cloud hosting, managed SLA support, and actual AI API consumption`,
+      whatWeHeardHeadline: `What we heard from ${company_name} on clinical care & patient operations:`,
+      whatWeHeardIntro: `Your clinical staff and patients experience friction across intake, scheduling, and follow-ups. Here is what needs solving:`,
+      whatWeHeardItems: [
+        {
+          youSaid: customFeature1,
+          today: `Patients wait on phone lines or fill redundant paper forms; clinic staff manually re-types intake data into EHR.`,
+        },
+        {
+          youSaid: customFeature2,
+          today: `Symptoms cannot be systematically triaged prior to arrival; acute and routine consultations compete in the same queue.`,
+        },
+        {
+          youSaid: customFeature3,
+          today: `Appointment no-shows and last-minute cancellations leave doctors idle and cost significant clinic revenue.`,
+        },
+        {
+          youSaid: customFeature4,
+          today: `Doctors spend excessive time typing consultation notes and manual prescriptions after every appointment.`,
+        },
+        {
+          youSaid: `Insurance eligibility and copay checks are verified by hand over phone calls, causing reception bottlenecks.`,
+          today: `Patients arrive without prior coverage confirmation; billing claims face delays and unexpected rejections.`,
+        },
+        {
+          youSaid: `Post-consultation instructions and prescription adherence are rarely tracked after the patient leaves the clinic.`,
+          today: `Follow-up care is entirely manual; patients forget medication schedules and preventive check-ins.`,
+        },
+        {
+          youSaid: `Patient records, lab reports, and imaging documents sit scattered across emails, chat apps, and paper files.`,
+          today: `Physicians lack a unified chronological patient timeline during emergency or repeat visits.`,
+        },
+        {
+          youSaid: `The practice wants to scale to multi-location clinics and telehealth consultations with complete data privacy.`,
+          today: `Existing off-the-shelf software is rigid, charges per-patient fees, and lacks custom workflow support.`,
+        },
+      ],
+      workflows: [
+        {
+          title: 'Patient Intake & Digital Check-in',
+          today: 'Today: Paper forms and clipboards at reception desk',
+          assisted: 'QR code & SMS check-in; AI verifies demographic info and updates EHR automatically',
+          badge: 'Patient Portal · Reception approves',
+        },
+        {
+          title: 'Conversational Symptom Triaging',
+          today: 'Today: Patient explains symptoms only upon doctor entry',
+          assisted: 'AI Clinical Assistant evaluates symptoms, flags red-flag alerts, and prepares a concise doctor brief',
+          badge: 'Clinical AI · Doctor reviews',
+        },
+        {
+          title: 'Doctor Matching & Smart Scheduling',
+          today: 'Today: Receptionist checks fragmented calendar books',
+          assisted: 'Intelligent scheduling algorithm matches clinical specialty, location, and doctor availability in real-time',
+          badge: 'Scheduling Engine',
+        },
+        {
+          title: 'Telehealth Video Consultation',
+          today: 'Today: Clunky external video links sent manually',
+          assisted: 'One-click encrypted HD video room inside the patient portal with synchronized live notes',
+          badge: 'Secure Video Hub',
+        },
+        {
+          title: 'Digital Prescriptions & Pharmacy Sync',
+          today: 'Today: Handwritten paper prescriptions prone to misreading',
+          assisted: 'Structured e-prescription generator with drug-interaction checks sent directly to patient WhatsApp and pharmacy',
+          badge: 'Clinical Gateway',
+        },
+        {
+          title: 'Insurance Eligibility Pre-Check',
+          today: 'Today: Manual calls to insurer while patient waits in lobby',
+          assisted: 'Automated insurance verification API confirms active coverage, co-pays, and pre-authorization requirements',
+          badge: 'Insurance API',
+        },
+        {
+          title: 'Automated Medication & Appointment Reminders',
+          today: 'Today: Missed appointments and non-compliance',
+          assisted: 'Automated WhatsApp & SMS notifications with one-click confirmation and reschedule links',
+          badge: 'Messaging Engine',
+        },
+        {
+          title: 'Critical Lab Alert Escalation',
+          today: 'Today: Normal and critical lab results mixed in inbox',
+          assisted: 'AI highlights out-of-range lab markers and triggers instant priority alert to the attending physician',
+          badge: 'Alert Sentinel',
+        },
+        {
+          title: 'Post-Visit Care & CSAT Feedback',
+          today: 'Today: Feedback rarely recorded systematically',
+          assisted: 'Automated post-visit check-in survey 24 hours after appointment; flags unhappy patients for quick resolution',
+          badge: 'Quality & CSAT Engine',
+        },
+      ],
+      modules: [
+        {
+          title: 'Patient Web Portal & Mobile App',
+          desc: 'Self-service patient portal for symptom intake, appointment booking, telehealth access, and medical record vault.',
+        },
+        {
+          title: 'AI Symptom & Triaging Assistant',
+          desc: 'Conversational AI engine that interviews patients, structures chief complaints, and classifies clinical urgency.',
+        },
+        {
+          title: 'Doctor Schedule & Capacity Manager',
+          desc: 'Multi-physician, multi-room calendar with automated buffer times, vacation rules, and emergency slot reserving.',
+        },
+        {
+          title: 'Telehealth Consultation Studio',
+          desc: 'HIPAA-compliant, WebRTC-based encrypted video consultation suite with live document sharing and clinician whiteboard.',
+        },
+        {
+          title: 'EHR / EMR Integration Bridge',
+          desc: 'Bidirectional sync with hospital EHR systems via standard HL7 / FHIR protocols and RESTful endpoints.',
+        },
+        {
+          title: 'Digital Rx & Drug Interaction Sentinel',
+          desc: 'Structured digital prescription builder with real-time contraindication and dosage safety checks.',
+        },
+        {
+          title: 'Insurance & Claims Pre-Auth Hub',
+          desc: 'Instant verification of patient insurance policy status, deductibles, copay amounts, and cashless approvals.',
+        },
+        {
+          title: 'Care Adherence & Reminder Engine',
+          desc: 'Automated omnichannel notification pipeline via WhatsApp, SMS, and email for appointments and medication refill alerts.',
+        },
+        {
+          title: 'Clinical Analytics & Revenue Dashboard',
+          desc: 'Real-time practice metrics: patient throughput, no-show rates, doctor utilization, and billing cycle recovery.',
+        },
+        {
+          title: 'Security, HIPAA & Audit Vault',
+          desc: 'End-to-end data encryption at rest and in transit, comprehensive audit logging of all patient record views, and role-based access.',
+        },
+      ],
+      aiCapabilities: [
+        { title: 'Symptom Triage Evaluator', desc: 'Analyzes patient chief complaints and categorizes clinical urgency into routine, urgent, or emergency.' },
+        { title: 'Clinical Note Summarizer', desc: 'Synthesizes conversation transcripts into structured SOAP clinical notes for physician sign-off in seconds.' },
+        { title: 'Specialty Doctor Matchmaker', desc: 'Matches patient symptoms and language preferences to the ideal attending medical specialist.' },
+        { title: 'No-Show Predictor', desc: 'Identifies high-risk appointment slots using historical patterns and triggers proactive confirmations.' },
+        { title: 'Drug Interaction Guardian', desc: 'Scans prescribed medications against patient allergy history and concurrent prescriptions in real time.' },
+        { title: 'Lab Outlier Highlighter', desc: 'Parses incoming diagnostic reports and flags abnormal markers with color-coded severity.' },
+        { title: 'Patient Query Assistant', desc: '24/7 AI chatbot that answers clinic FAQs, preparation guidelines for procedures, and clinic timings.' },
+        { title: 'Medical Speech-to-Text', desc: 'Accurate dictation engine trained on medical terminology and drug names for effortless doctor notes.' },
+        { title: 'Prescription OCR Scanner', desc: 'Digitizes previous paper prescriptions and medical histories from patient smartphone photos.' },
+        { title: 'Care Protocol Generator', desc: 'Drafts post-operative discharge instructions and recovery timelines based on clinical diagnoses.' },
+        { title: 'Insurance Policy Parser', desc: 'Reads insurance card photos and extracts policy numbers, validity dates, and payer IDs.' },
+        { title: 'Multilingual Clinical Translator', desc: 'Translates intake questionnaires and discharge instructions across major regional languages.' },
+        { title: 'Emergency Keyword Sentinel', desc: 'Monitors inbound chat messages for emergency keywords (chest pain, stroke symptoms) and alerts on-call staff.' },
+        { title: 'Patient Satisfaction Analyzer', desc: 'Extracts sentiment trends and clinical service feedback from post-visit reviews.' },
+      ],
+      automationsList: [
+        'Instant appointment confirmation SMS & WhatsApp upon booking',
+        'Automated calendar invite sync for both patient and physician',
+        'Pre-appointment digital intake link sent 24 hours in advance',
+        'Real-time EHR chart creation when a new patient registers',
+        'Automatic no-show detection and slot release after 15-minute grace period',
+        'Encrypted telehealth video room generated 10 minutes prior to call',
+        'Prescription PDF dispatch to patient WhatsApp and partner pharmacy',
+        'Insurance eligibility check triggered automatically upon check-in',
+        'Post-consultation medication refill reminder scheduled automatically',
+        'Automated 24-hour post-visit recovery check-in message',
+        'Unpaid copay alert dispatched to billing department',
+        'Daily morning physician patient queue brief dispatched to tablet',
+        'Automated weekly clinic revenue and patient volume executive report',
+        'Quarterly patient health check-up reminder notification pipeline',
+      ],
+    };
+  }
+
+  if (isDataEng) {
+    return {
+      heroHeadline: `The ${company_name} ${project_title}: High-Throughput Modern Data Lakehouse, Streaming Ingestion & Automated Analytics.`,
+      heroSubheadline: user_prompt.trim()
+        ? `${user_prompt.trim()} — engineered by NexInt AI as a robust, production-ready data platform unifying multi-source ETL/ELT, streaming ingestion, and data governance.`
+        : `Transform raw data into real-time business intelligence: automated data pipelines, Snowflake/Databricks lakehouse architecture, dbt transformation models, and continuous data quality monitoring.`,
+      whatSummary: `${project_title}: modern cloud data platform, streaming Kafka pipelines, and dbt transformation models`,
+      whoItServes: `Data engineering teams, analytics engineers, BI analysts, data scientists, and business executives`,
+      aiAndAutomationSummary: `14 automated data observability pipelines and 14 AI data intelligence capabilities, from automated schema anomaly detection to zero-downtime ETL orchestration`,
+      worksWithSummary: `Snowflake / Databricks / PostgreSQL, Apache Kafka / Redpanda, dbt Core, Airflow / Dagster, Tableau / Power BI, and Slack alerts`,
+      runningCostSummary:
+        currency === 'INR'
+          ? `About ₹35,000–50,000 / month: scalable cloud compute (AWS/GCP) ₹20,000, managed SLA support ₹15,000, and data warehouse usage at actuals`
+          : `Predictable monthly operations: cloud data warehouse compute, managed SLA support, and pipeline orchestration at actual cost`,
+      whatWeHeardHeadline: `What we heard from ${company_name} on data infrastructure & reporting:`,
+      whatWeHeardIntro: `Your analytical workloads suffer from fragmented databases, delayed reports, and pipeline breakages. Here is what needs solving:`,
+      whatWeHeardItems: [
+        {
+          youSaid: customFeature1,
+          today: `Data is scattered across multiple operational databases, SaaS tools, and manual CSV exports.`,
+        },
+        {
+          youSaid: customFeature2,
+          today: `Nightly batch ETL pipelines frequently break due to unexpected schema changes and upstream API changes.`,
+        },
+        {
+          youSaid: customFeature3,
+          today: `Business stakeholders wait days for custom SQL reports from overworked data engineering staff.`,
+        },
+        {
+          youSaid: customFeature4,
+          today: `There is no single source of truth; metrics like active customers, ARR, and gross margins differ across teams.`,
+        },
+        {
+          youSaid: `Real-time event streams cannot be ingested fast enough to support live operational dashboards.`,
+          today: `Analytics queries run against production transactional databases, causing system latency and downtime.`,
+        },
+        {
+          youSaid: `Data transformations lack version control, automated regression testing, and data lineage documentation.`,
+          today: `Nobody knows which source table or calculation broke the metric when numbers appear incorrect.`,
+        },
+        {
+          youSaid: `PII and sensitive customer data lack automated masking and granular role-based access control.`,
+          today: `Security compliance and audit reporting require tedious manual spreadsheet audits.`,
+        },
+        {
+          youSaid: `The company needs a scalable foundation ready for production machine learning and generative AI applications.`,
+          today: `Legacy data structures are too brittle and disorganized to train or feed modern AI models.`,
+        },
+      ],
+      workflows: [
+        {
+          title: 'Multi-Source Data Ingestion (CDC & API)',
+          today: 'Today: Fragile custom cron scripts and manual CSV downloads',
+          assisted: 'Automated Change Data Capture (CDC) and connector pipelines stream data continuously into Bronze raw storage',
+          badge: 'Ingestion Engine',
+        },
+        {
+          title: 'Automated Schema Validation & Evolution',
+          today: 'Today: Upstream schema changes crash downstream reports silently',
+          assisted: 'Schema Registry checks incoming data types and automatically handles non-breaking evolutions with Slack alerts',
+          badge: 'Schema Sentinel',
+        },
+        {
+          title: 'Bronze-to-Silver Cleaning & Normalization',
+          today: 'Today: Inconsistent date formats and duplicate records in warehouse',
+          assisted: 'dbt models clean, deduplicate, and standardize raw records into unified relational entities',
+          badge: 'dbt Transformation',
+        },
+        {
+          title: 'Continuous Data Quality & Freshness Testing',
+          today: 'Today: Stakeholders discover bad data only after leadership meetings',
+          assisted: 'Automated assertions check for nulls, referential integrity, and freshness every 15 minutes',
+          badge: 'Quality Engine',
+        },
+        {
+          title: 'Silver-to-Gold Business Aggregation',
+          today: 'Today: Analysts write 500-line SQL queries every Monday morning',
+          assisted: 'Pre-computed dimensional tables (Facts & Dimensions) optimized for instant BI query performance',
+          badge: 'Dimensional Modeling',
+        },
+        {
+          title: 'Semantic Layer & Central Metric Definitions',
+          today: 'Today: Marketing and Finance calculate revenue using different formulas',
+          assisted: 'Centralized semantic layer enforces consistent business metric calculations across all tools',
+          badge: 'Semantic Layer',
+        },
+        {
+          title: 'Reverse ETL to Operational SaaS Tools',
+          today: 'Today: Sales and support staff cannot see warehouse insights in CRM',
+          assisted: 'Synchronizes enriched customer scores, churn risk, and LTV directly into Salesforce/CRM and marketing tools',
+          badge: 'Reverse ETL',
+        },
+        {
+          title: 'Pipeline Anomaly Detection & Self-Healing',
+          today: 'Today: Failed jobs require 3 AM manual engineering triage',
+          assisted: 'AI identifies root-cause pipeline failures, retries idempotent steps, and routes diagnostics to engineers',
+          badge: 'AI Observability',
+        },
+        {
+          title: 'Real-Time BI Dashboard Refresh',
+          today: 'Today: Dashboards show stale yesterday-morning data',
+          assisted: 'Streaming partitions trigger micro-batch dashboard refreshes within seconds of event occurrence',
+          badge: 'BI Automation',
+        },
+      ],
+      modules: [
+        { title: 'Streaming Ingestion Cluster (Kafka / Redpanda)', desc: 'Distributed event ingestion cluster capable of handling high-frequency streaming events with zero message loss.' },
+        { title: 'Cloud Data Warehouse (Snowflake / Databricks)', desc: 'Multi-cluster scalable warehouse with separated storage and compute, configured with optimized clustering keys.' },
+        { title: 'Transformation & Modeling Engine (dbt)', desc: 'Modular dbt Core project with comprehensive staging, intermediate, and marts layers under strict Git version control.' },
+        { title: 'Data Quality & Anomaly Sentinel', desc: 'Real-time test suite asserting schema consistency, volume anomalies, distribution drift, and referential integrity.' },
+        { title: 'Pipeline Orchestrator (Airflow / Dagster)', desc: 'DAG-based scheduling with automated retry policies, dependency management, and conditional branching.' },
+        { title: 'Semantic Metric Store', desc: 'Single source of truth defining corporate KPIs (Revenue, Churn, CAC, LTV) accessible by any BI tool.' },
+        { title: 'Data Catalog & Lineage Tracker', desc: 'Searchable enterprise data dictionary showing end-to-end lineage from source database to final dashboard.' },
+        { title: 'PII Masking & RBAC Security Layer', desc: 'Dynamic column-level data masking and role-based access policies adhering to SOC2 and GDPR compliance.' },
+        { title: 'Reverse ETL Operational Sync', desc: 'Automated pipelines pushing analytical warehouse attributes back into CRM and customer support tools.' },
+        { title: 'Executive BI & Observability Dashboard', desc: 'Interactive leadership dashboards with sub-second query latency and pipeline operational status monitoring.' },
+      ],
+      aiCapabilities: [
+        { title: 'Schema Anomaly Detector', desc: 'Detects unexpected column additions, deletions, or type mutations before pipelines execute.' },
+        { title: 'Pipeline Root-Cause Analyzer', desc: 'Pinpoints exact SQL lines and source API errors responsible for pipeline bottlenecks.' },
+        { title: 'Text-to-SQL Query Generator', desc: 'Allows business users to query the warehouse in plain English with verified SQL translation.' },
+        { title: 'Data Drift Monitor', desc: 'Tracks statistical shifts in numerical and categorical distributions across model features.' },
+        { title: 'Cost Optimization Advisor', desc: 'Recommends warehouse sizing, idle suspension timeouts, and query clustering adjustments.' },
+        { title: 'Smart Entity Matcher', desc: 'Matches fuzzy customer identities across disparate databases without manual foreign keys.' },
+        { title: 'Automated Data Documentation', desc: 'Generates plain-language descriptions and business definitions for all warehouse tables and columns.' },
+        { title: 'Volume Spike Forecaster', desc: 'Predicts upcoming peak data ingestion volumes based on seasonal trends and schedules compute.' },
+        { title: 'PII Auto-Classifier', desc: 'Scans new tables and automatically tags sensitive columns (names, phone numbers, credit card data).' },
+        { title: 'Slow-Query Diagnostic Engine', desc: 'Analyzes query execution profiles and suggests missing indexes or partition pruning strategies.' },
+        { title: 'Data Quality Health Scorecard', desc: 'Calculates a daily reliability percentage for every data product in the organization.' },
+        { title: 'Duplicate Row Resolver', desc: 'Identifies non-identical duplicate transactions and synthesizes unified master records.' },
+        { title: 'Automated Metric Explainer', desc: 'Synthesizes written explanations for why a KPI jumped or dipped compared to historical periods.' },
+        { title: 'SLA Breach Predictor', desc: 'Alerts data engineering when an upstream pipeline delay will impact executive morning reports.' },
+      ],
+      automationsList: [
+        'Real-time Change Data Capture (CDC) triggered on every database mutation',
+        'Automated dbt transformation triggered immediately after successful ingestion',
+        'Data quality test assertions executed automatically prior to mart publishing',
+        'Instant Slack & PagerDuty alerts dispatched upon pipeline failure with stack trace',
+        'Automated data warehouse auto-suspend after 2 minutes of idle query time',
+        'Weekly automated vacuuming, partition optimization, and metadata cleanup',
+        'Automated reverse-ETL customer sync to CRM every hour',
+        'Daily morning data freshness audit report delivered to engineering channel',
+        'Automated schema change approval pull request generated in GitHub',
+        'Continuous archival of raw cold data to cost-effective S3 Glacier storage',
+        'Automatic retry of network-interrupted ingestion jobs with exponential backoff',
+        'BI dashboard cache pre-warming triggered right after dbt mart completion',
+        'Automated compliance audit log generated monthly for data governance',
+        'Weekly warehouse cost and compute utilization digest sent to leadership',
+      ],
+    };
+  }
+
+  if (isAiAgent) {
+    return {
+      heroHeadline: `The ${company_name} ${project_title}: Autonomous AI Agents, RAG Intelligence & Workflow Automation.`,
+      heroSubheadline: user_prompt.trim()
+        ? `${user_prompt.trim()} — engineered by NexInt AI as a production-grade multi-agent system orchestrating conversational AI, retrieval-augmented generation (RAG), and system actions.`
+        : `Empower your operations with autonomous intelligence: custom multi-agent orchestration, contextual RAG knowledge search, automated decision pipelines, and enterprise security guardrails.`,
+      whatSummary: `${project_title}: multi-agent AI system, enterprise RAG knowledge engine, and automated action execution`,
+      whoItServes: `Customer operations, support agents, account managers, sales teams, and end users`,
+      aiAndAutomationSummary: `14 custom LLM capabilities and 14 autonomous agent workflows with human-in-the-loop review gates and real-time hallucination prevention`,
+      worksWithSummary: `OpenAI / Anthropic / Gemini models, Pinecone / pgvector vector search, CRM & ticketing tools (Zendesk, Salesforce), Slack, and internal APIs`,
+      runningCostSummary:
+        currency === 'INR'
+          ? `About ₹25,000–35,000 / month: scalable container hosting ₹12,000, managed SLA support ₹15,000, and model token usage at actual API cost`
+          : `Predictable monthly operations: managed cloud infrastructure, 24/7 SLA maintenance, and model tokens billed at direct provider cost`,
+      whatWeHeardHeadline: `What we heard from ${company_name} on AI automation & operational scale:`,
+      whatWeHeardIntro: `Your team spends countless hours on repetitive customer interactions and searching scattered internal knowledge. Here is what we are automating:`,
+      whatWeHeardItems: [
+        {
+          youSaid: customFeature1,
+          today: `Team members spend hours answering the same repetitive customer questions and drafting standard replies.`,
+        },
+        {
+          youSaid: customFeature2,
+          today: `Internal knowledge is locked inside PDFs, Google Docs, Notion, and email threads, making lookups frustratingly slow.`,
+        },
+        {
+          youSaid: customFeature3,
+          today: `Off-the-shelf chatbots hallucinate answers, lack company context, and fail when executing actual system actions.`,
+        },
+        {
+          youSaid: customFeature4,
+          today: `Complex inquiries require human intervention, but there is no smooth handover mechanism between AI and human agents.`,
+        },
+        {
+          youSaid: `Customer sentiment is not tracked in real-time, allowing frustrated users to churn before managers notice.`,
+          today: `Support managers only review CSAT ratings days or weeks after poor interactions occur.`,
+        },
+        {
+          youSaid: `Actions like booking appointments, generating quotes, or updating CRM tickets still require manual copy-pasting.`,
+          today: `The AI provides text answers but cannot securely invoke internal APIs or perform real backend updates.`,
+        },
+        {
+          youSaid: `Sensitive corporate data must not be leaked or used to train public foundation models.`,
+          today: `Employees use unvetted consumer AI tools, creating severe intellectual property and compliance vulnerabilities.`,
+        },
+        {
+          youSaid: `The system must continually learn from human corrections and track accuracy metrics over time.`,
+          today: `There is no evaluation harness to benchmark whether prompts or model upgrades improve resolution rates.`,
+        },
+      ],
+      workflows: [
+        {
+          title: 'Omnichannel Inquiry Ingestion & Classification',
+          today: 'Today: Inbound emails, chats, and forms sit in a disorganized queue',
+          assisted: 'AI classifies user intent, sentiment, and urgency in milliseconds, routing to the specialized agent',
+          badge: 'Agent Gateway',
+        },
+        {
+          title: 'Contextual RAG Knowledge Retrieval',
+          today: 'Today: Support agents search through 20 different knowledge base docs',
+          assisted: 'Vector search retrieves verified company documents and cites exact source paragraphs for grounding',
+          badge: 'RAG Pipeline',
+        },
+        {
+          title: 'Autonomous Tool & API Execution',
+          today: 'Today: Agent reads answer, then switches tabs to update CRM/ERP manually',
+          assisted: 'Agent executes verified API calls (create order, update ticket, reschedule date) with safety parameters',
+          badge: 'Tool Execution',
+        },
+        {
+          title: 'Human-in-the-Loop Approval Gate',
+          today: 'Today: All actions either fully manual or unmonitored',
+          assisted: 'High-stakes decisions (refunds, contract alterations) present a 1-click approval prompt to managers',
+          badge: 'Human-in-the-Loop',
+        },
+        {
+          title: 'Real-Time Hallucination & PII Guardrail',
+          today: 'Today: Chatbot responses risk exposing sensitive data or false claims',
+          assisted: 'Guardrail engine verifies factual accuracy against retrieved context and redacts PII before transmission',
+          badge: 'Safety Sentinel',
+        },
+        {
+          title: 'Seamless Agent-to-Human Handover',
+          today: 'Today: Customer has to repeat their entire story when escalated',
+          assisted: 'Instant live handover with concise bullet-point conversation summary presented to the human agent',
+          badge: 'Handover Engine',
+        },
+        {
+          title: 'Post-Conversation CRM & Ticket Resolution',
+          today: 'Today: Agents spend 10 minutes typing wrap-up notes per conversation',
+          assisted: 'AI writes structured summary, logs action taken, and tags the CRM record automatically upon closure',
+          badge: 'CRM Automation',
+        },
+        {
+          title: 'Continuous Evaluation & Feedback Learning',
+          today: 'Today: No visibility into prompt quality or model drift',
+          assisted: 'Human edits and positive/negative user feedback benchmarked into golden dataset for continuous tuning',
+          badge: 'Eval Harness',
+        },
+        {
+          title: 'Leadership AI Performance Analytics',
+          today: 'Today: Support performance metrics are estimated or delayed',
+          assisted: 'Real-time dashboard tracking deflection rate, resolution speed, top customer pain points, and CSAT',
+          badge: 'Analytics Hub',
+        },
+      ],
+      modules: [
+        { title: 'Omnichannel Chat & Voice Gateway', desc: 'Unified API connecting Web Chat, WhatsApp, Slack, Email, and Voice channels into a single event stream.' },
+        { title: 'Multi-Agent Orchestration Hub', desc: 'LangChain/LangGraph-based agent coordinator directing tasks to specialized domain agents (Support, Sales, Operations).' },
+        { title: 'Enterprise RAG & Vector Memory Vault', desc: 'High-performance vector database indexing company docs, FAQs, policies, and past successful resolutions.' },
+        { title: 'Tool Execution & API Integration Bridge', desc: 'Secure function-calling middleware executing transactional queries against internal databases and third-party APIs.' },
+        { title: 'Security Guardrails & PII Masking Engine', desc: 'NeMo/Llama-Guard security layer preventing prompt injection, jailbreaks, PII leakage, and off-topic conversations.' },
+        { title: 'Human-in-the-Loop Review Console', desc: 'Real-time web console where supervisors review pending agent actions, override responses, and monitor live chats.' },
+        { title: 'Conversation Memory & Session Vault', desc: 'Short-term and long-term user memory tracking historical preferences and previous interactions.' },
+        { title: 'Automated Ticket & CRM Sync Bridge', desc: 'Two-way integration logging conversation transcripts, structured outcomes, and customer sentiment into CRM.' },
+        { title: 'Evaluation & Golden Dataset Harness', desc: 'Automated CI/CD testing suite running synthetic benchmark queries to measure accuracy before prompt deployments.' },
+        { title: 'Executive AI Command Center', desc: 'Real-time dashboard displaying resolution rate, average handle time reduction, cost per query, and CSAT scores.' },
+      ],
+      aiCapabilities: [
+        { title: 'Intent Classifier', desc: 'Identifies the customer’s true operational goal across 50+ business categories in under 100ms.' },
+        { title: 'Contextual RAG Searcher', desc: 'Performs hybrid semantic and keyword search across internal documents with relevance reranking.' },
+        { title: 'Structured Data Extractor', desc: 'Extracts names, dates, amounts, and tracking numbers from messy user messages into valid JSON.' },
+        { title: 'Hallucination Sentinel', desc: 'Cross-verifies generated answers against retrieved knowledge base snippets to guarantee truthfulness.' },
+        { title: 'Tone & Empathy Adapter', desc: 'Modulates language tone from empathetic for complaints to concise for technical answers.' },
+        { title: 'Multi-Lingual Translator', desc: 'Translates conversations back and forth across 20+ global and regional languages in real-time.' },
+        { title: 'Action Function Caller', desc: 'Synthesizes clean API parameters and calls internal microservices to execute tasks.' },
+        { title: 'Conversation Summarizer', desc: 'Compresses long 30-message support threads into a 4-bullet executive briefing for human agents.' },
+        { title: 'Sentiment & Escalation Detector', desc: 'Measures emotional sentiment and triggers immediate VIP supervisor escalation if frustration rises.' },
+        { title: 'Document OCR & Attachment Reader', desc: 'Reads uploaded receipts, screenshots, and PDF contracts attached during the chat.' },
+        { title: 'Clarification Question Asker', desc: 'Detects ambiguous queries and asks targeted multiple-choice questions to resolve ambiguity.' },
+        { title: 'FAQ Synthesizer', desc: 'Discovers repeated unanswered questions from chat logs and drafts candidate knowledge base articles.' },
+        { title: 'Security Prompt-Injection Guard', desc: 'Neutralizes adversarial prompt injections and attempts to bypass enterprise instructions.' },
+        { title: 'CSAT Prediction Engine', desc: 'Forecasts customer satisfaction score before the user even completes the survey.' },
+      ],
+      automationsList: [
+        'Instant greeting and intent routing triggered within 50ms of user message',
+        'Automated RAG knowledge retrieval executed on every customer question',
+        'Automatic CRM lead or support ticket created when conversation begins',
+        'Manager alert dispatched to Slack when customer sentiment drops below critical threshold',
+        'Automated calendar scheduling link dispatched when meeting intent is confirmed',
+        'One-click supervisor approval email dispatched for refunds or policy exceptions',
+        'Automatic ticket closure and resolution summary logged to CRM upon customer goodbye',
+        'Automated CSAT rating prompt dispatched 5 minutes after conversation completion',
+        'Daily automated batch indexing of newly edited company Notion / Google Docs',
+        'Weekly automated evaluation report benchmarked against golden test dataset',
+        'Instant notification dispatched to engineering if LLM API rate limits are approached',
+        'Automated conversation redaction of credit cards and passwords before database storage',
+        'Weekly executive summary email outlining top customer inquiries and deflection rate',
+        'Automated alert sent to content team when a customer asks an unanswered question',
+      ],
+    };
+  }
+
+  // Generalized High-Performance Enterprise Platform (Default for Idea to Launch, SaaS, Others)
+  return {
+    heroHeadline: `The ${company_name} ${project_title}: Unified Digital Platform, Workflow Automation & Real-Time Intelligence.`,
+    heroSubheadline: user_prompt.trim()
+      ? `${user_prompt.trim()} — engineered by NexInt AI as a modern, high-performance web and mobile application with end-to-end automation and role-based controls.`
+      : `Transform your operational workflows into a unified digital ecosystem: bespoke software architecture, automated approval pipelines, real-time analytics, and seamless third-party integrations.`,
+    whatSummary: `${project_title}: responsive web application, mobile-optimized experience, and administrative command center`,
+    whoItServes: `Operations leadership, department heads, project managers, delivery teams, and external stakeholders`,
+    aiAndAutomationSummary: `14 intelligent software capabilities and 14 automated system workflows, from automated intake and document verification to real-time analytics`,
+    worksWithSummary: `Cloud infrastructure (AWS/GCP), external REST/GraphQL APIs, CRM & ERP systems, WhatsApp/Email notifications, and payment gateways`,
+    runningCostSummary:
+      currency === 'INR'
+        ? `About ₹20,000–30,000 / month from go-live: cloud hosting & database ₹10,000, 24/7 SLA maintenance ₹15,000, plus actual third-party API usage`
+        : `Predictable monthly operations: scalable cloud hosting, database backups, 24/7 SLA maintenance, and third-party API usage at actual cost`,
+    whatWeHeardHeadline: `What we heard from ${company_name} on operational goals & technical requirements:`,
+    whatWeHeardIntro: `Your organization needs a dedicated, modern platform built specifically for your workflows rather than generic off-the-shelf software:`,
+    whatWeHeardItems: [
+      {
+        youSaid: customFeature1,
+        today: `Core operational data is fragmented across spreadsheets, chat messages, and disparate single-purpose tools.`,
+      },
+      {
+        youSaid: customFeature2,
+        today: `Manual handoffs between departments cause avoidable delays, communication lapses, and missed deadlines.`,
+      },
+      {
+        youSaid: customFeature3,
+        today: `Leadership lacks a real-time, consolidated dashboard showing project status, commercial margins, and team throughput.`,
+      },
+      {
+        youSaid: customFeature4,
+        today: `Routine administrative tasks (status chasing, data entry, report compilation) consume valuable team hours.`,
+      },
+      {
+        youSaid: `User roles and permissions are loosely enforced, creating data security and operational governance risks.`,
+        today: `Everyone has access to everything or files are shared via unsecured email attachments.`,
+      },
+      {
+        youSaid: `The organization needs an intuitive, mobile-friendly interface that both internal staff and external partners adopt easily.`,
+        today: `Legacy enterprise tools are clunky, slow to load, and require extensive training to perform basic tasks.`,
+      },
+      {
+        youSaid: `Business processes and operational volume are scaling, but existing systems cannot handle increased load.`,
+        today: `Manual processes hit severe bottlenecks as transaction volume grows month-over-month.`,
+      },
+      {
+        youSaid: `All custom code, data, and cloud infrastructure must be 100% owned by ${company_name} without vendor lock-in.`,
+        today: `SaaS vendors charge escalating per-seat licenses while keeping customer data locked in proprietary silos.`,
+      },
+    ],
+    workflows: [
+      {
+        title: 'Digital Intake & Onboarding',
+        today: 'Today: Manual email back-and-forth and unstandardized spreadsheets',
+        assisted: 'Self-service digital onboarding portal; automatically validates inputs, checks duplicates, and notifies owners',
+        badge: 'Portal Engine',
+      },
+      {
+        title: 'Automated Status & Milestone Tracking',
+        today: 'Today: Managers spend hours in meetings asking "what is the update?"',
+        assisted: 'Real-time stage transitions trigger automated notifications, milestone updates, and deadline reminders',
+        badge: 'Workflow Automation',
+      },
+      {
+        title: 'Document & Agreement Verification',
+        today: 'Today: Documents reviewed by eye and filed manually into shared drives',
+        assisted: 'Automated document processing, e-signature dispatch, and secure cloud archiving with expiry tracking',
+        badge: 'Document Sentinel',
+      },
+      {
+        title: 'Multi-Level Approval Matrix',
+        today: 'Today: Approvals get stuck in email inboxes with zero visibility',
+        assisted: 'Configurable approval rules route requests to designated managers with 1-click approvals on mobile',
+        badge: 'Approval Gateway',
+      },
+      {
+        title: 'Commercial & Financial Tracking',
+        today: 'Today: Budgets, vendor payments, and costs tracked on separate sheets',
+        assisted: 'Unified commercial ledger tracking budgets, actual costs, vendor payments, and net profit margins in real-time',
+        badge: 'Financial Ledger',
+      },
+      {
+        title: 'Two-Way System Integration',
+        today: 'Today: Data re-typed between CRM, accounting, and task tools',
+        assisted: 'Real-time REST API webhooks synchronize records bidirectionally across external tools without manual intervention',
+        badge: 'API Bridge',
+      },
+      {
+        title: 'Customer & Partner Feedback Collection',
+        today: 'Today: Feedback rarely requested or captured in unstructured emails',
+        assisted: 'Automated CSAT surveys triggered upon milestone completion with AI sentiment analysis and executive alerts',
+        badge: 'Quality Engine',
+      },
+      {
+        title: 'Intelligent Operational Q&A',
+        today: 'Today: Finding specific historical information requires asking colleagues',
+        assisted: 'Plain-language semantic search over all historical project data, contracts, and notes with instant answers',
+        badge: 'Intelligent Search',
+      },
+      {
+        title: 'Automated Executive Reporting',
+        today: 'Today: Assembling monthly performance decks takes 2 days of manual work',
+        assisted: 'Automated weekly and monthly performance reports generated and delivered directly to leadership inboxes',
+        badge: 'Executive Analytics',
+      },
+    ],
+    modules: [
+      { title: 'Core Operations & Master Directory', desc: 'Centralized relational master database with advanced filtering, sorting, custom tagging, and audit history.' },
+      { title: 'External Partner & Client Portal', desc: 'Branded self-service portal allowing clients and external collaborators to submit requests and track progress.' },
+      { title: 'Workflow & Milestone Orchestrator', desc: 'Visual Kanban boards, interactive Gantt timelines, and configurable stage-gate delivery pipelines.' },
+      { title: 'Commercial Budget & Profit Tracker', desc: 'Granular budget allocation, vendor payment logging (AWS, contractors, resources), and automated net margin calculator.' },
+      { title: 'Role-Based Access & Governance (RBAC)', desc: 'Granular permissions matrix distinguishing Admins, Managers, and Members with complete access audit logs.' },
+      { title: 'Document Vault & E-Signature Hub', desc: 'Secure cloud file repository with version control, automated document generation, and digital signature routing.' },
+      { title: 'Omnichannel Notification Engine', desc: 'Automated email, WhatsApp, and in-app notifications with customizable triggers and schedule rules.' },
+      { title: 'Two-Way Third-Party Integration Bridge', desc: 'RESTful API gateway and webhook processors connecting CRM, ERP, finance, and task management systems.' },
+      { title: 'Quality Assurance & Feedback Engine', desc: 'Standardized rating scales, CSAT score tracking, review actions, and testimonial showcase toggles.' },
+      { title: 'Executive Command & Analytics Dashboard', desc: 'Real-time KPI metrics, revenue breakdowns by source, delivery velocity charts, and exportable CSV reports.' },
+    ],
+    aiCapabilities: [
+      { title: 'Smart Data Ingestion', desc: 'Parses legacy spreadsheets, cleans formatting inconsistencies, and maps fields to database schemas automatically.' },
+      { title: 'Semantic Document Reader', desc: 'Extracts critical clauses, renewal dates, and payment amounts from PDF agreements and contracts.' },
+      { title: 'Anomaly & Outlier Detector', desc: 'Identifies budget overruns, unusual cost spikes, and stalled milestones before delivery is impacted.' },
+      { title: 'Intelligent Resource Matcher', desc: 'Recommends team members and external partners based on skills, past ratings, and real-time capacity.' },
+      { title: 'Automated Brief Pre-Filler', desc: 'Turns unstructured user emails into structured work orders with scope line items and estimated timelines.' },
+      { title: 'Natural Language Q&A', desc: 'Allows team members to ask plain-language questions across corporate projects, notes, and metrics.' },
+      { title: 'Executive Summary Generator', desc: 'Condenses complex multi-week project progress into crisp executive bullet points for client updates.' },
+      { title: 'Sentiment & Feedback Analyzer', desc: 'Categorizes client reviews into actionable sentiment trends (Positive, Neutral, Negative) with highlighted risks.' },
+      { title: 'Task Effort Estimator', desc: 'Estimates timeline weeks and resource hours for new deliverables based on historical delivery data.' },
+      { title: 'Notification Urgency Classifier', desc: 'Prioritizes urgent alerts and suppresses low-priority noise during critical delivery sprints.' },
+      { title: 'Vendor Quote Equalizer', desc: 'Standardizes vendor quotes in different currencies and formats into unified comparison matrices.' },
+      { title: 'Automated SLA Sentinel', desc: 'Calculates SLA breach probabilities and re-orders task priority queues to prevent contract penalties.' },
+      { title: 'Weekly Digest Writer', desc: 'Composes weekly operational briefings highlighting achievements, open blockers, and upcoming deadlines.' },
+      { title: 'Audit Trail Sentinel', desc: 'Scans audit logs for unusual permission changes, abnormal deletion patterns, or security anomalies.' },
+    ],
+    automationsList: [
+      'Self-onboarding link generated and sent upon prospective account creation',
+      'Automated milestone status update dispatched to client when task is marked Done',
+      'Budget threshold alert dispatched to manager when costs exceed 80% of budget',
+      'Real-time Slack / WhatsApp notification when high-priority ticket is created',
+      'Automated contract renewal reminder dispatched 30 days prior to expiry',
+      'Weekly automated database backup and health check execution',
+      'Automated CSV export generation scheduled for monthly finance reconciliation',
+      'Customer CSAT survey sent automatically 24 hours after project completion',
+      'Automated invoice payment status sync between platform and finance system',
+      'Overdue follow-up check-in reminder highlighted on dashboard every morning',
+      'Automated password reset and account verification email pipeline',
+      'One-click proposal generation dispatched with synchronized lead status transition',
+      'Automatic archiving of completed projects after 90 days of inactivity',
+      'Weekly Monday morning leadership digest delivered with active revenue numbers',
+    ],
+  };
+}
+
+export function buildNexIntMasterProposal(params: {
   company_name: string;
   recipient_name: string;
   recipient_email: string;
@@ -2180,20 +2881,46 @@ proposalsRouter.post('/generate', async (req: AuthRequest, res: Response) => {
       key_requirements = '',
       user_prompt = '',
       tone = 'Executive & Consultative',
+      api_key = '',
+      model = '',
     } = req.body || {};
 
     const sender_name = req.user?.name || 'NexInt AI, Chennai';
-    const configuredKey = getEnvValue([
-      'GEMINI_ARGON_API_KEY',
-      'VITE_GEMINI_ARGON_API_KEY',
-      'GEMINI_API_KEY',
-    ]);
-    const configuredModel =
-      getEnvValue(['GEMINI_ARGON_MODEL', 'VITE_GEMINI_ARGON_MODEL']) || 'gemini-2.5-flash';
+    const configuredKey =
+      String(api_key || '').trim() ||
+      getEnvValue([
+        'GEMINI_ARGON_API_KEY',
+        'VITE_GEMINI_ARGON_API_KEY',
+        'GEMINI_API_KEY',
+      ]);
+    let configuredModel =
+      String(model || '').trim() ||
+      getEnvValue(['GEMINI_ARGON_MODEL', 'VITE_GEMINI_ARGON_MODEL']) ||
+      'gemini-2.0-flash';
 
-    let aiCustom: StructuredProposalContent = {};
+    if (
+      configuredModel.includes('argon') ||
+      (!configuredModel.startsWith('gemini-1') && !configuredModel.startsWith('gemini-2'))
+    ) {
+      configuredModel = 'gemini-2.0-flash';
+    }
 
-    // If a live Gemini API key is configured in .env, synthesize structured domain-specific content from the prompt
+    // 1. Synthesize domain-aware tailored base content from dynamic prompt and requirements
+    const baseDomainContent = synthesizeDynamicDomainContent({
+      company_name: String(company_name),
+      recipient_name: String(recipient_name),
+      project_title: String(project_title),
+      service_type: String(service_type),
+      budget: Number(budget || 950000),
+      currency: String(currency || 'INR'),
+      timeline_weeks: Number(timeline_weeks || 12),
+      user_prompt: String(user_prompt || ''),
+      key_requirements: String(key_requirements || ''),
+    });
+
+    let aiCustom: StructuredProposalContent = { ...baseDomainContent };
+
+    // 2. If a Gemini API key is configured or provided, query Gemini for additional custom enrichment
     if (configuredKey) {
       try {
         const prompt = `You are the Proposal Architect at NexInt AI (Chennai, India — "INTELLIGENCE BEYOND DATA").
@@ -2242,10 +2969,15 @@ JSON Schema to return:
         if (resp.ok) {
           const json: any = await resp.json();
           const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          aiCustom = JSON.parse(rawText);
+          if (rawText) {
+            const parsed = JSON.parse(rawText);
+            aiCustom = { ...baseDomainContent, ...parsed };
+          }
+        } else {
+          console.warn(`Gemini API returned ${resp.status}; utilizing dynamic domain synthesizer.`);
         }
-      } catch {
-        // Proceed with built-in synthesis into the 16-section NexInt AI template
+      } catch (geminiErr) {
+        console.warn('Gemini API call failed, utilizing dynamic domain synthesizer:', geminiErr);
       }
     }
 
