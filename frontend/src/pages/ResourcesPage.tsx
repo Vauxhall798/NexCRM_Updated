@@ -836,7 +836,7 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
         /* Table View (Allocation Matrix) */
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400">
                   <th className="py-3.5 px-4">Resource</th>

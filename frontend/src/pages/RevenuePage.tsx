@@ -616,7 +616,7 @@ export const RevenuePage: React.FC<RevenuePageProps> = ({ onNavigate }) => {
 
               {/* Monthly Breakdown Table */}
               <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 max-h-80">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse min-w-[700px]">
                   <thead className="sticky top-0 bg-slate-50 dark:bg-slate-800 z-10">
                     <tr className="border-b border-slate-200 dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       <th className="py-2.5 px-3.5">Month</th>
@@ -699,7 +699,7 @@ export const RevenuePage: React.FC<RevenuePageProps> = ({ onNavigate }) => {
               </div>
 
               <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse min-w-[650px]">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                       <th className="py-3 px-4">Year</th>
@@ -863,7 +863,7 @@ export const RevenuePage: React.FC<RevenuePageProps> = ({ onNavigate }) => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[850px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <th className="py-3.5 px-4">Project &amp; Service</th>

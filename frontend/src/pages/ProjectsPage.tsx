@@ -934,7 +934,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           </div>
         ) : (
           <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-left border-collapse">
+            <table className="w-full text-left border-collapse min-w-[700px]">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/50 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                   <th className="py-3 px-4">Cost Item / Description</th>
@@ -1218,7 +1218,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         </div>
 
         {/* Detail Tabs: Overview | Costs & Profit | Timeline */}
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 overflow-x-auto pb-px">
           <button
             type="button"
             onClick={() => setDetailTab('overview')}
@@ -1542,7 +1542,7 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+              <table className="w-full text-left border-collapse min-w-[850px]">
                 <thead>
                   <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
                     <th className="py-3.5 px-4">Project Name &amp; Tech Stack</th>

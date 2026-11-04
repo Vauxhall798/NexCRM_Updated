@@ -599,7 +599,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
       ) : (
         /* Gantt-style Schedule View */
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xs overflow-x-auto">
-          <div className="mb-4 flex items-center justify-between">
+          <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                 Gantt Schedule View
@@ -609,7 +609,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
                 {formatDate(new Date(ganttBounds.maxMs).toISOString())}
               </p>
             </div>
-            <div className="flex items-center gap-4 text-xs">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs">
               <span className="flex items-center gap-1.5">
                 <span className="w-3 h-3 rounded-xs bg-emerald-500 inline-block" /> Done
               </span>
