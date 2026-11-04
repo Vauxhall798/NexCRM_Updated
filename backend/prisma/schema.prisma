@@ -1,0 +1,251 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String          @id @default(uuid())
+  name          String
+  email         String          @unique
+  password_hash String
+  role          String          @default("MEMBER") // "ADMIN" | "MEMBER"
+  created_at    DateTime        @default(now())
+
+  owned_leads       Lead[]          @relation("LeadOwner")
+  lead_notes        LeadNote[]      @relation("LeadNoteAuthor")
+  client_notes      ClientNote[]    @relation("ClientNoteAuthor")
+  managed_projects  Project[]       @relation("ProjectManager")
+  timeline_tasks    TimelineEntry[] @relation("TimelineAssignee")
+  recorded_feedback Feedback[]      @relation("FeedbackRecorder")
+  assigned_tickets  BauTicket[]     @relation("BauTicketAssignee")
+}
+
+model Lead {
+  id            String      @id @default(uuid())
+  name          String
+  company       String
+  email         String
+  phone         String
+  source        String      // Website, Referral, LinkedIn, Cold outreach, Event, Other
+  service       String      // Web development, Mobile app, Custom software, Cloud/DevOps, UI/UX, IT consulting, Maintenance/support, Other
+  budget        Float       @default(0)
+  currency      String      @default("USD")
+  status        String      @default("New") // New, Contacted, Meeting scheduled, Proposal sent, Negotiation
+  owner_id      String?
+  next_followup DateTime?
+  notes         String      @default("")
+  created_at    DateTime    @default(now())
+
+  owner         User?       @relation("LeadOwner", fields: [owner_id], references: [id], onDelete: SetNull)
+  lead_notes    LeadNote[]
+  conversion    Conversion?
+  client        Client?
+}
+
+model LeadNote {
+  id         String   @id @default(uuid())
+  lead_id    String
+  text       String
+  created_by String?
+  created_at DateTime @default(now())
+
+  lead       Lead     @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+  author     User?    @relation("LeadNoteAuthor", fields: [created_by], references: [id], onDelete: SetNull)
+}
+
+model Conversion {
+  id         String    @id @default(uuid())
+  lead_id    String    @unique
+  outcome    String    @default("in_progress") // in_progress | converted | not_converted
+  reason     String?   // Budget, Went to competitor, No response, Timing, Requirements mismatch, Other
+  comment    String?
+  deal_value Float?
+  currency   String    @default("USD")
+  decided_at DateTime?
+  history    String    @default("[]") // JSON array recording outcome changes over time
+  created_at DateTime  @default(now())
+
+  lead       Lead      @relation(fields: [lead_id], references: [id], onDelete: Cascade)
+}
+
+model Client {
+  id               String       @id @default(uuid())
+  lead_id          String?      @unique
+  company          String
+  contact_name     String
+  email            String
+  phone            String
+  address          String       @default("")
+  website          String       @default("")
+  industry         String       @default("")
+  status           String       @default("Active") // Active, On hold, Completed, Inactive
+  notes            String       @default("")
+  became_client_at DateTime     @default(now())
+  created_at       DateTime     @default(now())
+
+  lead             Lead?        @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  projects         Project[]
+  client_notes     ClientNote[]
+  feedbacks        Feedback[]
+  bau_tickets      BauTicket[]
+}
+
+model ClientNote {
+  id         String   @id @default(uuid())
+  client_id  String
+  text       String
+  created_by String?
+  created_at DateTime @default(now())
+
+  client     Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  author     User?    @relation("ClientNoteAuthor", fields: [created_by], references: [id], onDelete: SetNull)
+}
+
+model Project {
+  id                String          @id @default(uuid())
+  client_id         String
+  name              String
+  description       String          @default("")
+  service_type      String          // Web development, Mobile app, Custom software, Cloud/DevOps, UI/UX, IT consulting, Maintenance/support, Other
+  status            String          @default("Planned") // Planned, In progress, On hold, Completed, Cancelled
+  start_date        DateTime
+  end_date          DateTime
+  budget            Float           @default(0)
+  currency          String          @default("USD")
+  manager_id        String?
+  tech_stack        String          @default("") // Comma-separated tags
+  progress          Int             @default(0)  // 0-100
+  progress_override Boolean         @default(false)
+  notes             String          @default("")
+  created_at        DateTime        @default(now())
+
+  client            Client          @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  manager           User?           @relation("ProjectManager", fields: [manager_id], references: [id], onDelete: SetNull)
+  timeline_entries  TimelineEntry[]
+  feedbacks         Feedback[]
+  bau_tickets       BauTicket[]
+  resource_assignments ResourceAssignment[]
+}
+
+model TimelineEntry {
+  id          String    @id @default(uuid())
+  project_id  String
+  title       String
+  description String    @default("")
+  type        String    @default("Task") // Milestone, Task, Meeting, Delivery, Issue, Note
+  start_date  DateTime
+  end_date    DateTime?
+  status      String    @default("Planned") // Planned, In progress, Done, Delayed
+  assignee_id String?
+  sort_order  Int       @default(0)
+  created_at  DateTime  @default(now())
+
+  project     Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  assignee    User?     @relation("TimelineAssignee", fields: [assignee_id], references: [id], onDelete: SetNull)
+}
+
+model Feedback {
+  id             String   @id @default(uuid())
+  client_id      String
+  project_id     String?
+  rating         Int      @default(5) // 1 to 5
+  sentiment      String   @default("Positive") // Positive, Neutral, Constructive, Critical
+  category       String   @default("Delivery Quality") // Delivery Quality, Communication, Timeline & Speed, Technical Expertise, Support & SLA, General
+  comment        String
+  action_taken   String   @default("")
+  status         String   @default("Reviewed") // New, Reviewed, Action in progress, Resolved
+  submitted_by   String   @default("")
+  feedback_date  DateTime @default(now())
+  recorded_by    String?
+  is_testimonial Boolean  @default(false)
+  created_at     DateTime @default(now())
+
+  client         Client   @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  project        Project? @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  recorder       User?    @relation("FeedbackRecorder", fields: [recorded_by], references: [id], onDelete: SetNull)
+}
+
+model BauTicket {
+  id               String    @id @default(uuid())
+  ticket_number    String    @unique
+  client_id        String
+  project_id       String
+  title            String
+  description      String    @default("")
+  category         String    @default("Bug / Defect") // Bug / Defect, Change Request, Performance, Access & Security, Environment / Infra, Data / Reporting
+  priority         String    @default("Medium") // Low, Medium, High, Critical
+  state            String    @default("New") // New | Work in progress | Pending | Resolved
+  reported_by      String    @default("")
+  assignee_id      String?
+  resolution_notes String    @default("")
+  sla_due_date     DateTime?
+  resolved_at      DateTime?
+  created_at       DateTime  @default(now())
+
+  client           Client    @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  project          Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  assignee         User?     @relation("BauTicketAssignee", fields: [assignee_id], references: [id], onDelete: SetNull)
+}
+
+model Resource {
+  id             String               @id @default(uuid())
+  name           String
+  email          String               @unique
+  role_title     String               // e.g. Senior Full-Stack Engineer, Cloud Architect
+  department     String               @default("Engineering") // Engineering, Cloud & DevOps, AI & Data, Design & UX, Delivery & QA
+  seniority      String               @default("Senior") // Principal, Senior, Mid-Level, Junior
+  skills         String               @default("") // Comma-separated skills
+  total_capacity Int                  @default(100) // Weekly capacity % (usually 100)
+  hourly_rate    Float                @default(85)
+  on_leave       Boolean              @default(false)
+  notes          String               @default("")
+  created_at     DateTime             @default(now())
+
+  assignments    ResourceAssignment[]
+}
+
+model ResourceAssignment {
+  id              String   @id @default(uuid())
+  resource_id     String
+  project_id      String
+  assignment_role String   @default("Software Engineer")
+  allocation_pct  Int      @default(50) // 5 to 100
+  start_date      DateTime
+  end_date        DateTime
+  status          String   @default("Active") // Active, Planned, Completed
+  notes           String   @default("")
+  created_at      DateTime @default(now())
+
+  resource        Resource @relation(fields: [resource_id], references: [id], onDelete: Cascade)
+  project         Project  @relation(fields: [project_id], references: [id], onDelete: Cascade)
+}
+
+model Proposal {
+  id               String    @id @default(uuid())
+  proposal_number  String    @unique
+  lead_id          String?
+  client_id        String?
+  company_name     String
+  recipient_name   String
+  recipient_email  String
+  project_title    String
+  service_type     String    @default("Custom software")
+  budget           Float     @default(0)
+  currency         String    @default("USD")
+  timeline_weeks   Int       @default(8)
+  key_requirements String    @default("")
+  email_subject    String
+  email_body       String
+  html_proposal    String
+  ai_model         String    @default("Gemini Argon AI")
+  status           String    @default("Draft") // Draft, Sent, Accepted, Declined
+  sent_at          DateTime?
+  created_by       String?
+  created_at       DateTime  @default(now())
+}
+
+

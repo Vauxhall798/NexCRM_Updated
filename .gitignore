@@ -1,0 +1,40 @@
+# Node & Package Managers
+node_modules/
+*/node_modules/
+
+# Production builds
+dist/
+*/dist/
+build/
+*.tsbuildinfo
+
+# Environment files & secrets
+.env
+.env.local
+.env.*.local
+frontend/.env
+backend/.env
+
+# SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# System and IDE files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
