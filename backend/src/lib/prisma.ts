@@ -303,6 +303,22 @@ db.exec(`
     ELSE 'AI services'
   END
   WHERE "service_type" NOT IN ('AI services', 'Data Engineering', 'Idea to Launch', 'Others');
+
+  -- Ensure default admin user always exists with password Admin123!
+  INSERT OR IGNORE INTO "User" ("id", "name", "email", "password_hash", "role", "created_at")
+  VALUES (
+    'admin-root-user-id',
+    'NexInt AI admin',
+    'admin@nexcrm.io',
+    'scrypt$a1b2c3d4e5f678901234567890abcdef$66322d0118f4c63498721b960989d4727f69466a1235484eec1028cc7f8ae4d42376122a3cc95ca4656d21db33a7f6c91ac13683bddc12e3b33af45c11221326',
+    'ADMIN',
+    '2026-11-01T00:00:00.000Z'
+  );
+
+  UPDATE "User"
+  SET "name" = 'NexInt AI admin',
+      "role" = 'ADMIN'
+  WHERE "email" = 'admin@nexcrm.io';
 `);
 
 function toIso(val: unknown): string | null {
