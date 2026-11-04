@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -5,7 +6,13 @@ import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.resolve(__dirname, '..', '..', 'prisma', 'dev.db');
+const defaultPath = path.resolve(__dirname, '..', '..', 'prisma', 'dev.db');
+let rawPath = process.env.DATABASE_PATH || process.env.DATABASE_URL;
+if (rawPath && rawPath.startsWith('file:')) {
+  rawPath = rawPath.replace(/^file:/, '');
+}
+const dbPath = rawPath ? path.resolve(rawPath) : defaultPath;
+fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const db = new DatabaseSync(dbPath);
 
 // Enable foreign keys and initialize all tables matching prisma/schema.prisma

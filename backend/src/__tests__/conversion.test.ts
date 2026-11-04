@@ -11,6 +11,8 @@ describe('Lead -> Conversion -> Client Automated Tests', () => {
   let testConversionId = '';
 
   before(async () => {
+    await prisma.client.deleteMany({ where: { company: 'QuantumGrid Systems' } });
+    await prisma.lead.deleteMany({ where: { company: 'QuantumGrid Systems' } });
     const testUser = await prisma.user.upsert({
       where: { email: 'test-runner@nexcrm.io' },
       update: {},
@@ -52,10 +54,10 @@ describe('Lead -> Conversion -> Client Automated Tests', () => {
         email: 'jordan@quantumgrid.io',
         phone: '+1 (555) 234-5678',
         source: 'Website',
-        service: 'Custom software',
-        budget: 75000,
-        currency: 'USD',
-        status: 'Proposal sent',
+        service: 'AI services',
+        budget: 750000,
+        currency: 'INR',
+        status: 'New',
         notes: 'Enterprise grid monitoring platform.',
       },
     });

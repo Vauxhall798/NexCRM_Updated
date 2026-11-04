@@ -2,6 +2,10 @@
   "name": "nexcrm-backend",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
   "scripts": {
     "dev": "node --no-warnings --experimental-strip-types --experimental-sqlite src/index.ts",
     "start": "node --no-warnings --experimental-strip-types --experimental-sqlite src/index.ts",
