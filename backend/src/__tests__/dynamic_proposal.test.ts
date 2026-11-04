@@ -125,4 +125,42 @@ test('Dynamic Proposal Synthesis & HTML Generation Tests', async (t) => {
     assert.ok(generated.html_proposal.includes('Global Mart'));
     assert.ok(generated.html_proposal.includes('Wholesale B2B Portal'));
   });
+
+  await t.test('4. Dynamic Prompt strips legacy Hotcult vendor requirements when user prompt is about another domain', () => {
+    const prompt = 'Build an autonomous AI agent for Apex Logistics for fleet dispatch and tracking';
+    const legacyHotcultReqs = 'The vendor repository lives in a multi-tab sheet: agencies, consultants, ratings, feedback and influencers by language\nA brief goes to two or three vendors; they send an RFQ with cost and approach';
+    
+    const content = synthesizeDynamicDomainContent({
+      company_name: 'Apex Logistics',
+      recipient_name: 'Operations Lead',
+      project_title: 'Fleet Logistics & Dispatch Platform',
+      service_type: 'AI services',
+      budget: 800000,
+      currency: 'INR',
+      timeline_weeks: 8,
+      user_prompt: prompt,
+      key_requirements: legacyHotcultReqs,
+    });
+
+    const generated = buildNexIntMasterProposal({
+      company_name: 'Apex Logistics',
+      recipient_name: 'Operations Lead',
+      recipient_email: 'ops@apexlogistics.com',
+      project_title: 'Fleet Logistics & Dispatch Platform',
+      service_type: 'AI services',
+      budget: 800000,
+      currency: 'INR',
+      timeline_weeks: 8,
+      key_requirements: '',
+      user_prompt: prompt,
+      tone: 'Executive & Consultative',
+      sender_name: 'NexInt AI, Chennai',
+      aiCustom: content,
+    });
+
+    assert.ok(generated.html_proposal.includes('Apex Logistics'));
+    assert.ok(!generated.html_proposal.includes('multi-tab sheet'));
+    assert.ok(!generated.html_proposal.includes('agencies, consultants, ratings'));
+  });
 });
+

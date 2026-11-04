@@ -164,13 +164,32 @@ export function synthesizeDynamicDomainContent(params: {
     key_requirements = '',
   } = params;
 
-  const combined = `${user_prompt} ${key_requirements} ${project_title} ${service_type}`.toLowerCase();
+  const cleanKeyReqs =
+    key_requirements.includes('The vendor repository lives in a multi-tab sheet') &&
+    !user_prompt.toLowerCase().includes('hotcult') &&
+    !user_prompt.toLowerCase().includes('vendor')
+      ? ''
+      : key_requirements;
+
+  const combined = `${user_prompt} ${cleanKeyReqs} ${project_title} ${service_type}`.toLowerCase();
 
   // Extract custom prompt lines
-  const rawLines = `${user_prompt}\n${key_requirements}`
+  let rawLines = `${user_prompt}\n${cleanKeyReqs}`
     .split(/\n|•|;/)
     .map((s) => s.replace(/^[-*0-9.)\s]+/, '').trim())
-    .filter((s) => s.length > 5);
+    .filter((s) => s.length > 5 && !s.toLowerCase().startsWith('generate an interactive html proposal'));
+
+  // If user provided a single descriptive prompt sentence, extract features by splitting on clauses
+  if (rawLines.length <= 1 && user_prompt.trim().length > 15) {
+    const clauses = user_prompt
+      .replace(/^generate (?:an? )?(?:interactive )?(?:html )?proposal (?:for [^,]+ )?(?:covering|with)?/i, '')
+      .split(/,|\band\b|\bwith\b|\bincluding\b/i)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 4);
+    if (clauses.length >= 2) {
+      rawLines = clauses;
+    }
+  }
 
   const customFeature1 = rawLines[0] || `${project_title} core automation workflows`;
   const customFeature2 = rawLines[1] || `Intelligent analytics and real-time reporting`;
@@ -2870,11 +2889,11 @@ info@nexintai.com · nexintai.com`;
 proposalsRouter.post('/generate', async (req: AuthRequest, res: Response) => {
   try {
     const {
-      company_name = 'Hotcult',
-      recipient_name = 'Manjari Srivishnu',
-      recipient_email = 'manjari@hotcult.com',
-      project_title = 'Vendor Hub',
-      service_type = 'Custom software',
+      company_name = '',
+      recipient_name = '',
+      recipient_email = '',
+      project_title = '',
+      service_type = '',
       budget = 950000,
       currency = 'INR',
       timeline_weeks = 12,
@@ -2884,6 +2903,106 @@ proposalsRouter.post('/generate', async (req: AuthRequest, res: Response) => {
       api_key = '',
       model = '',
     } = req.body || {};
+
+    const userPromptStr = String(user_prompt || '').trim();
+    let finalCompanyName = String(company_name || '').trim();
+    let finalProjectTitle = String(project_title || '').trim();
+    let finalRecipientName = String(recipient_name || '').trim();
+    let finalRecipientEmail = String(recipient_email || '').trim();
+    let finalKeyReqs = String(key_requirements || '').trim();
+    let finalServiceType = String(service_type || 'AI services').trim();
+
+    // If key requirements is the legacy default Hotcult text and the prompt is not about Hotcult, ignore it
+    if (
+      finalKeyReqs.includes('The vendor repository lives in a multi-tab sheet') &&
+      !userPromptStr.toLowerCase().includes('hotcult') &&
+      !userPromptStr.toLowerCase().includes('vendor')
+    ) {
+      finalKeyReqs = '';
+    }
+
+    if (userPromptStr) {
+      const isHealthcare = /health|patient|doctor|clinic|hospital|triage|medical|telehealth|symptom|ehr|emr/i.test(userPromptStr);
+      const isDataEng = /data engineering|pipeline|etl|elt|lakehouse|warehouse|snowflake|databricks|kafka|streaming|dbt/i.test(userPromptStr);
+      const isFintech = /fintech|bank|payment|invoice|po\b|purchase order|treasury|fraud|loan|ledger/i.test(userPromptStr);
+      const isEcommerce = /ecommerce|e-commerce|store|cart|checkout|shop|product|catalog|order|marketplace/i.test(userPromptStr);
+      const isLogistics = /logistics|supply chain|fleet|route|driver|dispatch|shipment|freight|delivery/i.test(userPromptStr);
+      const isAiAgent = /ai agent|conversational|chatbot|llm|rag|nlp|virtual assistant|copilot|generative ai/i.test(userPromptStr);
+
+      // Auto-detect service pillar
+      if (isDataEng) finalServiceType = 'Data Engineering';
+      else if (isAiAgent || isHealthcare) finalServiceType = 'AI services';
+      else if (/mvp|launch|web app|mobile app|portal|saas/i.test(userPromptStr)) finalServiceType = 'Idea to Launch';
+
+      // Auto-extract Company Name if prompt specifies "for <Company>"
+      const companyMatch = userPromptStr.match(/(?:for|client)\s+([A-Z][A-Za-z0-9&.\-'\s]{1,30}?)(?:\s+(?:with|covering|to|in|and|\.|\,|$))/);
+      if (
+        companyMatch &&
+        companyMatch[1] &&
+        !/^(?:our|the|an|a|healthcare|operations|data|analytics|cloud|ecommerce|logistics)$/i.test(
+          companyMatch[1].trim()
+        )
+      ) {
+        finalCompanyName = companyMatch[1].trim();
+      } else if (
+        (!finalCompanyName || finalCompanyName === 'Hotcult') &&
+        !userPromptStr.toLowerCase().includes('hotcult')
+      ) {
+        if (isHealthcare) finalCompanyName = 'CarePulse Health';
+        else if (isDataEng) finalCompanyName = 'DataFlow Systems';
+        else if (isFintech) finalCompanyName = 'FinFlow Technologies';
+        else if (isEcommerce) finalCompanyName = 'OmniCommerce';
+        else if (isLogistics) finalCompanyName = 'LogiCore Express';
+        else if (isAiAgent) finalCompanyName = 'Nova AI Solutions';
+        else finalCompanyName = 'Enterprise Client';
+      }
+
+      // Auto-derive Project Title if title is empty or defaulted to 'Vendor Hub'
+      if (
+        (!finalProjectTitle || finalProjectTitle === 'Vendor Hub') &&
+        !userPromptStr.toLowerCase().includes('vendor hub')
+      ) {
+        if (isHealthcare) finalProjectTitle = 'AI Patient Care & Clinic Triage Portal';
+        else if (isDataEng) finalProjectTitle = 'Enterprise Streaming Lakehouse & Data Platform';
+        else if (isFintech) finalProjectTitle = 'Automated Invoice & Financial Ledger System';
+        else if (isEcommerce) finalProjectTitle = 'Next-Gen B2B Wholesale Marketplace';
+        else if (isLogistics) finalProjectTitle = 'Intelligent Fleet Logistics & Dispatch Engine';
+        else if (isAiAgent) finalProjectTitle = 'Autonomous AI Agent & Copilot System';
+        else {
+          const cleanSnippet = userPromptStr
+            .replace(
+              /^generate (?:an? )?(?:interactive )?(?:html )?proposal (?:for [^,]+ )?(?:covering|with)?/i,
+              ''
+            )
+            .split(/,|\./)[0]
+            .trim();
+          finalProjectTitle =
+            cleanSnippet.length > 5
+              ? cleanSnippet.charAt(0).toUpperCase() + cleanSnippet.slice(1)
+              : `${finalCompanyName} Digital Platform`;
+        }
+      }
+
+      // Adjust recipient if still defaulted to Manjari Srivishnu
+      if (
+        (!finalRecipientName || finalRecipientName === 'Manjari Srivishnu') &&
+        finalCompanyName !== 'Hotcult'
+      ) {
+        finalRecipientName = 'Executive Sponsor';
+      }
+      if (
+        (!finalRecipientEmail || finalRecipientEmail === 'manjari@hotcult.com') &&
+        finalCompanyName !== 'Hotcult'
+      ) {
+        const slug = finalCompanyName.toLowerCase().replace(/[^a-z0-9]/g, '') || 'client';
+        finalRecipientEmail = `contact@${slug}.com`;
+      }
+    } else {
+      if (!finalCompanyName) finalCompanyName = 'Hotcult';
+      if (!finalProjectTitle) finalProjectTitle = 'Vendor Hub';
+      if (!finalRecipientName) finalRecipientName = 'Manjari Srivishnu';
+      if (!finalRecipientEmail) finalRecipientEmail = 'manjari@hotcult.com';
+    }
 
     const sender_name = req.user?.name || 'NexInt AI, Chennai';
     const configuredKey =
@@ -2896,26 +3015,26 @@ proposalsRouter.post('/generate', async (req: AuthRequest, res: Response) => {
     let configuredModel =
       String(model || '').trim() ||
       getEnvValue(['GEMINI_ARGON_MODEL', 'VITE_GEMINI_ARGON_MODEL']) ||
-      'gemini-2.0-flash';
+      'gemini-2.5-flash';
 
     if (
       configuredModel.includes('argon') ||
       (!configuredModel.startsWith('gemini-1') && !configuredModel.startsWith('gemini-2'))
     ) {
-      configuredModel = 'gemini-2.0-flash';
+      configuredModel = 'gemini-2.5-flash';
     }
 
     // 1. Synthesize domain-aware tailored base content from dynamic prompt and requirements
     const baseDomainContent = synthesizeDynamicDomainContent({
-      company_name: String(company_name),
-      recipient_name: String(recipient_name),
-      project_title: String(project_title),
-      service_type: String(service_type),
+      company_name: finalCompanyName,
+      recipient_name: finalRecipientName,
+      project_title: finalProjectTitle,
+      service_type: finalServiceType,
       budget: Number(budget || 950000),
       currency: String(currency || 'INR'),
       timeline_weeks: Number(timeline_weeks || 12),
-      user_prompt: String(user_prompt || ''),
-      key_requirements: String(key_requirements || ''),
+      user_prompt: userPromptStr,
+      key_requirements: finalKeyReqs,
     });
 
     let aiCustom: StructuredProposalContent = { ...baseDomainContent };
@@ -2925,18 +3044,18 @@ proposalsRouter.post('/generate', async (req: AuthRequest, res: Response) => {
       try {
         const prompt = `You are the Proposal Architect at NexInt AI (Chennai, India — "INTELLIGENCE BEYOND DATA").
 Based on the user's prompt and client parameters below, return ONLY valid JSON matching the StructuredProposalContent schema to populate our 16-section NexInt AI proposal template:
-- Client Company: ${company_name}
-- Recipient: ${recipient_name}
-- Project Title: ${project_title}
-- Service Pillar: ${service_type}
+- Client Company: ${finalCompanyName}
+- Recipient: ${finalRecipientName}
+- Project Title: ${finalProjectTitle}
+- Service Pillar: ${finalServiceType}
 - Budget: ${currency} ${budget}
 - Timeline: ${timeline_weeks} weeks
-- User Prompt: ${user_prompt}
-- Key Requirements: ${key_requirements}
+- User Prompt: ${userPromptStr}
+- Key Requirements: ${finalKeyReqs}
 
 JSON Schema to return:
 {
-  "heroHeadline": "string (e.g. The ${company_name} ${project_title}: one AI-powered app for your entire ...)",
+  "heroHeadline": "string (e.g. The ${finalCompanyName} ${finalProjectTitle}: one AI-powered app for your entire ...)",
   "heroSubheadline": "string",
   "whatSummary": "string",
   "whoItServes": "string",
@@ -2982,16 +3101,16 @@ JSON Schema to return:
     }
 
     const generated = buildNexIntMasterProposal({
-      company_name: String(company_name),
-      recipient_name: String(recipient_name),
-      recipient_email: String(recipient_email),
-      project_title: String(project_title),
-      service_type: String(service_type),
+      company_name: finalCompanyName,
+      recipient_name: finalRecipientName,
+      recipient_email: finalRecipientEmail,
+      project_title: finalProjectTitle,
+      service_type: finalServiceType,
       budget: Number(budget || 950000),
       currency: String(currency || 'INR'),
       timeline_weeks: Number(timeline_weeks || 12),
-      key_requirements: String(key_requirements || ''),
-      user_prompt: String(user_prompt || ''),
+      key_requirements: finalKeyReqs,
+      user_prompt: userPromptStr,
       tone: String(tone),
       sender_name,
       aiCustom,

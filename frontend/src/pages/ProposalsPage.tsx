@@ -39,24 +39,52 @@ interface ProposalsPageProps {
 
 const PROMPT_PRESETS = [
   {
-    label: 'Vendor Hub & Procurement Portal',
+    label: 'Healthcare AI Patient Portal',
+    company: 'CarePulse Health',
+    recipient: 'Dr. Ramesh Kumar',
+    email: 'dr.ramesh@carepulse.com',
+    title: 'AI Patient Care & Clinic Triage Portal',
+    service: 'AI services' as ServiceType,
+    budget: '950000',
+    weeks: '10',
     prompt:
-      'From discovering and onboarding agencies, consultants, freelancers and influencers to matching them to briefs, comparing quotes, raising POs, approving invoices and collecting feedback — working alongside Folk, ClickUp and Focus.',
+      'Build an AI conversational agent for CarePulse Health for patient symptom triaging, smart doctor appointment booking, and real-time EHR integration.',
   },
   {
     label: 'Enterprise AI & Operations Hub',
+    company: 'Apex Technologies',
+    recipient: 'Suresh Menon',
+    email: 'suresh@apextech.com',
+    title: 'Enterprise AI & Operations Hub',
+    service: 'AI services' as ServiceType,
+    budget: '1150000',
+    weeks: '12',
     prompt:
-      'Build an end-to-end AI-powered operations hub with automated intake, intelligent matching, multi-stage approvals, ERP & CRM two-way sync, and executive dashboards.',
+      'Build an end-to-end AI-powered operations hub for Apex Technologies with automated customer intake, intelligent RAG document search, multi-stage approvals, ERP sync, and executive command center.',
   },
   {
-    label: 'Cloud & Data Engineering Platform',
+    label: 'Cloud & Data Lakehouse',
+    company: 'DataFlow Systems',
+    recipient: 'Priya Sharma',
+    email: 'priya@dataflow.com',
+    title: 'Enterprise Streaming Lakehouse Platform',
+    service: 'Data Engineering' as ServiceType,
+    budget: '1400000',
+    weeks: '12',
     prompt:
-      'Architect a unified data engineering and automation platform with smart spreadsheet migration, automated document verification, role-based access control, and 100% client ownership.',
+      'Architect a unified real-time data streaming pipeline for DataFlow Systems using Kafka, Snowflake data warehouse, dbt transformations, and data quality observability.',
   },
   {
-    label: 'Custom Web & Self-Service Portal',
+    label: 'Vendor Hub & Procurement Portal',
+    company: 'Hotcult',
+    recipient: 'Manjari Srivishnu',
+    email: 'manjari@hotcult.com',
+    title: 'Vendor Hub & Procurement Portal',
+    service: 'Idea to Launch' as ServiceType,
+    budget: '950000',
+    weeks: '12',
     prompt:
-      'Deliver a responsive web application and external self-service portal with e-signature onboarding, automated follow-ups, milestone billing, and plain-language Ask AI.',
+      'From discovering and onboarding agencies, consultants, freelancers and influencers to matching them to briefs, comparing quotes, raising POs, approving invoices and collecting feedback — working alongside Folk, ClickUp and Focus.',
   },
 ];
 
@@ -79,22 +107,22 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
 
   // User Prompt State (for prompt-driven HTML proposal generation)
   const [userPrompt, setUserPrompt] = useState(
-    'From discovering and onboarding agencies, consultants, freelancers and influencers to matching them to briefs, comparing quotes, raising POs, approving invoices and collecting feedback — working alongside Folk, ClickUp and Focus.'
+    'Build an AI conversational agent for CarePulse Health for patient symptom triaging, smart doctor appointment booking, and real-time EHR integration.'
   );
 
   // Generator Form State
   const [selectedClientId, setSelectedClientId] = useState<string>('');
   const [selectedLeadId, setSelectedLeadId] = useState<string>('');
-  const [companyName, setCompanyName] = useState('Hotcult');
-  const [recipientName, setRecipientName] = useState('Manjari Srivishnu');
-  const [recipientEmail, setRecipientEmail] = useState('manjari@hotcult.com');
-  const [projectTitle, setProjectTitle] = useState('Vendor Hub');
+  const [companyName, setCompanyName] = useState('CarePulse Health');
+  const [recipientName, setRecipientName] = useState('Dr. Ramesh Kumar');
+  const [recipientEmail, setRecipientEmail] = useState('dr.ramesh@carepulse.com');
+  const [projectTitle, setProjectTitle] = useState('AI Patient Care & Clinic Triage Portal');
   const [serviceType, setServiceType] = useState<ServiceType>('AI services');
   const [budget, setBudget] = useState('950000');
   const [currency, setCurrency] = useState('INR');
-  const [timelineWeeks, setTimelineWeeks] = useState('12');
+  const [timelineWeeks, setTimelineWeeks] = useState('10');
   const [keyRequirements, setKeyRequirements] = useState(
-    'The vendor repository lives in a multi-tab sheet: agencies, consultants, ratings, feedback and influencers by language\nA brief goes to two or three vendors; they send an RFQ with cost and approach; you pick one and sign a contract\nNDAs need signatures, sometimes from one specific person, and reminders\nAfter delivery, the invoice goes to finance for approval, then payment and a PO through Focus, and an email once the bank transfer is done\nYou want to know where every project stands: NDA, PO, invoice, closed\nInternal ratings come from the team and creative directors; vendor feedback is a Google Form that brand solutions chases'
+    'Conversational symptom triaging with urgency classification\nReal-time doctor matching and automated appointment booking\nBidirectional sync with hospital EHR/EMR via HL7 / FHIR APIs\nAutomated medication reminders and post-consultation WhatsApp follow-ups'
   );
   const [tone, setTone] = useState('Executive & Consultative');
   const envArgonApiKey = String(import.meta.env.VITE_GEMINI_ARGON_API_KEY || '').trim();
@@ -189,15 +217,76 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
     }
   };
 
-  const handleGenerateWithArgon = async (silent = false, customPromptOverride?: string) => {
-    if (!companyName.trim()) {
-      showToast('Please enter a company name', 'error');
-      return;
+  const handlePromptChange = (val: string) => {
+    setUserPrompt(val);
+
+    // Auto-detect service pillar
+    if (/data engineering|kafka|snowflake|lakehouse|etl|elt|dbt/i.test(val)) {
+      setServiceType('Data Engineering');
+    } else if (/ai agent|conversational|chatbot|llm|rag|triage|copilot/i.test(val)) {
+      setServiceType('AI services');
+    } else if (/mvp|launch|web app|mobile app|portal|saas/i.test(val)) {
+      setServiceType('Idea to Launch');
     }
+
+    // Auto-extract Company Name if user typed "for <Company>" and haven't selected a saved client
+    if (!selectedClientId && !selectedLeadId) {
+      const match = val.match(
+        /(?:for|client)\s+([A-Z][A-Za-z0-9&.\-'\s]{1,30}?)(?:\s+(?:with|covering|to|in|and|\.|\,|$))/
+      );
+      if (
+        match &&
+        match[1] &&
+        !/^(?:our|the|an|a|healthcare|operations|data|analytics|cloud|ecommerce|logistics)$/i.test(
+          match[1].trim()
+        )
+      ) {
+        const comp = match[1].trim();
+        setCompanyName(comp);
+        setRecipientEmail(
+          `contact@${comp.toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}.com`
+        );
+        setProjectTitle(`${comp} Solution Proposal`);
+      }
+    }
+  };
+
+  const handleGenerateWithArgon = async (silent = false, customPromptOverride?: string) => {
+    const promptToUse = (
+      customPromptOverride !== undefined ? customPromptOverride : userPrompt
+    ).trim();
+
+    let compToUse = companyName.trim();
+    if (!compToUse) {
+      const compMatch = promptToUse.match(
+        /(?:for|client)\s+([A-Z][A-Za-z0-9&.\-'\s]{1,30}?)(?:\s+(?:with|covering|to|in|and|\.|\,|$))/
+      );
+      if (
+        compMatch &&
+        compMatch[1] &&
+        !/^(?:our|the|an|a|healthcare|operations|data|analytics|cloud|ecommerce|logistics)$/i.test(
+          compMatch[1].trim()
+        )
+      ) {
+        compToUse = compMatch[1].trim();
+      } else if (/health|patient|doctor|clinic|triage/i.test(promptToUse)) {
+        compToUse = 'CarePulse Health';
+      } else if (/data engineering|kafka|snowflake|lakehouse/i.test(promptToUse)) {
+        compToUse = 'DataFlow Systems';
+      } else {
+        compToUse = 'Enterprise Client';
+      }
+      setCompanyName(compToUse);
+    }
+
+    let titleToUse = projectTitle.trim();
+    if (!titleToUse || titleToUse === 'Vendor Hub') {
+      titleToUse = `${compToUse} Solution Proposal`;
+      setProjectTitle(titleToUse);
+    }
+
     setGenerating(true);
     try {
-      const promptToUse =
-        customPromptOverride !== undefined ? customPromptOverride : userPrompt;
       const res = await apiFetch<{
         email_subject: string;
         email_body: string;
@@ -206,14 +295,16 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
       }>('/proposals/generate', {
         method: 'POST',
         body: JSON.stringify({
-          company_name: companyName,
-          recipient_name: recipientName,
-          recipient_email: recipientEmail,
-          project_title: projectTitle,
+          company_name: compToUse,
+          recipient_name: recipientName.trim() || 'Executive Sponsor',
+          recipient_email:
+            recipientEmail.trim() ||
+            `contact@${compToUse.toLowerCase().replace(/[^a-z0-9]/g, '') || 'client'}.com`,
+          project_title: titleToUse,
           service_type: serviceType,
-          budget: Number(budget) || 0,
+          budget: Number(budget) || 950000,
           currency,
-          timeline_weeks: Number(timelineWeeks) || 8,
+          timeline_weeks: Number(timelineWeeks) || 12,
           key_requirements: keyRequirements,
           user_prompt: promptToUse,
           tone,
@@ -441,6 +532,14 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
                 type="button"
                 onClick={() => {
                   setUserPrompt(preset.prompt);
+                  setCompanyName(preset.company);
+                  setRecipientName(preset.recipient);
+                  setRecipientEmail(preset.email);
+                  setProjectTitle(preset.title);
+                  setServiceType(preset.service);
+                  setBudget(preset.budget);
+                  setTimelineWeeks(preset.weeks);
+                  setKeyRequirements(preset.prompt);
                 }}
                 className="px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-white/10 hover:bg-white/20 text-cyan-100 border border-white/15 transition-colors cursor-pointer"
               >
@@ -454,14 +553,14 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
           <textarea
             rows={2}
             value={userPrompt}
-            onChange={(e) => setUserPrompt(e.target.value)}
+            onChange={(e) => handlePromptChange(e.target.value)}
             onKeyDown={(e) => {
               if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
                 e.preventDefault();
                 handleGenerateWithArgon(false);
               }
             }}
-            placeholder="Describe how you want your interactive HTML proposal and email structured (e.g. 'Create an interactive proposal for Kinetix Robotics with 3-tier pricing options, cloud architecture deliverables, 10-week roadmap, and ROI breakdown')..."
+            placeholder="Describe how you want your interactive HTML proposal and email structured (e.g. 'Build an AI conversational agent for CarePulse Health for patient symptom triaging and appointment booking')..."
             className="flex-1 px-3.5 py-2.5 text-xs leading-relaxed rounded-xl bg-slate-950/50 border border-white/20 text-white placeholder:text-slate-300 focus:outline-none focus:border-[#7BC8DC]"
           />
           <button
