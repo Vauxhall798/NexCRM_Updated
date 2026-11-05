@@ -13,7 +13,8 @@ if (rawPath && rawPath.startsWith('file:')) {
 }
 const dbPath = rawPath ? path.resolve(rawPath) : defaultPath;
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
-const db = new DatabaseSync(dbPath);
+export const db = new DatabaseSync(dbPath);
+export const resolvedDbPath = dbPath;
 
 // Enable foreign keys, WAL mode, and busy timeout for concurrent safety
 db.exec(`
@@ -400,6 +401,41 @@ try {
   }
 } catch (e) {
   console.warn('ClientPayment initial seed notice:', e);
+}
+
+try {
+  // If an auto-backup JSON file exists in prisma/ and DB is fresh, restore live data automatically
+  const backupCandidate = path.resolve(__dirname, '..', '..', 'prisma', 'auto_backup.json');
+  if (fs.existsSync(backupCandidate)) {
+    const paymentCount = (db.prepare('SELECT count(*) as c FROM "ClientPayment"').get() as any)?.c || 0;
+    const leadCount = (db.prepare('SELECT count(*) as c FROM "Lead"').get() as any)?.c || 0;
+    if (leadCount <= 2 || paymentCount <= 4) {
+      const raw = fs.readFileSync(backupCandidate, 'utf-8');
+      const parsed = JSON.parse(raw);
+      if (parsed?.data && typeof parsed.data === 'object') {
+        db.exec('PRAGMA foreign_keys = OFF;');
+        db.exec('BEGIN TRANSACTION;');
+        for (const [tbl, rows] of Object.entries(parsed.data)) {
+          if (Array.isArray(rows) && rows.length > 0) {
+            db.exec(`DELETE FROM "${tbl}";`);
+            for (const r of rows as any[]) {
+              const keys = Object.keys(r);
+              if (keys.length === 0) continue;
+              const placeholders = keys.map(() => '?').join(', ');
+              const cols = keys.map((k) => `"${k}"`).join(', ');
+              const values = keys.map((k) => r[k]);
+              db.prepare(`INSERT OR REPLACE INTO "${tbl}" (${cols}) VALUES (${placeholders})`).run(...values);
+            }
+          }
+        }
+        db.exec('COMMIT;');
+        db.exec('PRAGMA foreign_keys = ON;');
+        console.log('Successfully restored live database state from auto_backup.json on startup.');
+      }
+    }
+  }
+} catch (e) {
+  console.warn('Auto-restore backup check notice:', e);
 }
 
 

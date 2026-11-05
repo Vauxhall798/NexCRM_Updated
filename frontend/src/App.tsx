@@ -21,6 +21,7 @@ import {
   Sparkles,
   DollarSign,
   CreditCard,
+  Database,
 } from 'lucide-react';
 import { apiFetch, getToken, setToken } from './lib/api';
 import { NavTab, User } from './types/crm';
@@ -39,6 +40,7 @@ import { TimelinePage } from './pages/TimelinePage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { BauPage } from './pages/BauPage';
+import { DatabaseModal } from './components/DatabaseModal';
 
 interface NavItem {
   id: NavTab;
@@ -135,6 +137,7 @@ export const App: React.FC = () => {
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
   const [contextId, setContextId] = useState<string | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [databaseModalOpen, setDatabaseModalOpen] = useState(false);
 
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem('nexcrm_sidebar_collapsed') === 'true';
@@ -572,6 +575,16 @@ export const App: React.FC = () => {
             <div className="flex items-center gap-2 sm:gap-3">
               <button
                 type="button"
+                onClick={() => setDatabaseModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:border-indigo-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors shadow-xs cursor-pointer"
+                title="Database Status, Persistence & 1-Click Backup"
+              >
+                <Database className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                <span className="hidden sm:inline">Database &amp; Backup</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setDarkMode(!darkMode)}
                 className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                 title="Toggle theme"
@@ -655,6 +668,12 @@ export const App: React.FC = () => {
           </main>
         </div>
       </div>
+
+      <DatabaseModal
+        open={databaseModalOpen}
+        onClose={() => setDatabaseModalOpen(false)}
+        onDataRestored={() => window.location.reload()}
+      />
     </ToastProvider>
   );
 };

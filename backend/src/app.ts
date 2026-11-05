@@ -13,6 +13,7 @@ import { resourcesRouter } from './routes/resources.ts';
 import { proposalsRouter } from './routes/proposals.ts';
 import { revenueRouter } from './routes/revenue.ts';
 import { paymentsRouter } from './routes/payments.ts';
+import { systemRouter } from './routes/system.ts';
 
 export const app = createApp();
 
@@ -33,3 +34,4 @@ app.use('/api/resources', resourcesRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use('/api/revenue', revenueRouter);
 app.use('/api/payments', paymentsRouter);
+app.use('/api/system', systemRouter);
