@@ -12,6 +12,7 @@ import { bauRouter } from './routes/bau.ts';
 import { resourcesRouter } from './routes/resources.ts';
 import { proposalsRouter } from './routes/proposals.ts';
 import { revenueRouter } from './routes/revenue.ts';
+import { paymentsRouter } from './routes/payments.ts';
 
 export const app = createApp();
 
@@ -31,3 +32,4 @@ app.use('/api/bau-tickets', bauRouter);
 app.use('/api/resources', resourcesRouter);
 app.use('/api/proposals', proposalsRouter);
 app.use('/api/revenue', revenueRouter);
+app.use('/api/payments', paymentsRouter);

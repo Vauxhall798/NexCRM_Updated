@@ -16,6 +16,7 @@ import {
   MessageSquarePlus,
   Building2,
   ArrowLeft,
+  CreditCard,
 } from 'lucide-react';
 import { apiFetch, ApiError } from '../lib/api';
 import {
@@ -608,11 +609,19 @@ export const ClientsPage: React.FC<ClientsPageProps> = ({
                           <span className="font-semibold">{proj.progress}%</span>
                         </div>
                       </td>
-                      <td className="py-3.5 px-4 text-right">
+                      <td className="py-3.5 px-4 text-right space-x-3">
+                        <button
+                          type="button"
+                          onClick={() => onNavigate('client_payments', proj.id)}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+                        >
+                          <CreditCard className="w-3.5 h-3.5" />
+                          Payment Phases &rarr;
+                        </button>
                         <button
                           type="button"
                           onClick={() => onNavigate('projects', proj.id)}
-                          className="text-indigo-600 dark:text-indigo-400 font-semibold hover:underline"
+                          className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
                         >
                           View Project &rarr;
                         </button>

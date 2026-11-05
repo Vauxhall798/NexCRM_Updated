@@ -11,6 +11,8 @@ import {
   LeadSource,
   LeadStatus,
   NotConvertedReason,
+  PaymentMethod,
+  PaymentStatus,
   ProjectStatus,
   ResourceAvailabilityStatus,
   ResourceDepartment,
@@ -84,6 +86,23 @@ export const TIMELINE_STATUSES: TimelineStatus[] = [
   'In progress',
   'Done',
   'Delayed',
+];
+
+export const PAYMENT_STATUSES: PaymentStatus[] = [
+  'Pending',
+  'Invoiced',
+  'Partially Paid',
+  'Paid',
+  'Overdue',
+];
+
+export const PAYMENT_METHODS: PaymentMethod[] = [
+  'Bank Transfer / NEFT',
+  'Wire Transfer',
+  'UPI',
+  'Cheque',
+  'Credit Card',
+  'Other',
 ];
 
 export const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD'];
@@ -213,6 +232,22 @@ export function getClientStatusBadge(status: string): string {
       return 'bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-300 dark:border-indigo-800';
     default:
       return 'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
+  }
+}
+
+export function getPaymentStatusBadge(status: string): string {
+  switch (status) {
+    case 'Paid':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800';
+    case 'Invoiced':
+      return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/60 dark:text-blue-300 dark:border-blue-800';
+    case 'Partially Paid':
+      return 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800';
+    case 'Overdue':
+      return 'bg-rose-50 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800 font-semibold';
+    case 'Pending':
+    default:
+      return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700';
   }
 }
 

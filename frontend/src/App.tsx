@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Sparkles,
   DollarSign,
+  CreditCard,
 } from 'lucide-react';
 import { apiFetch, getToken, setToken } from './lib/api';
 import { NavTab, User } from './types/crm';
@@ -33,6 +34,7 @@ import { ProposalsPage } from './pages/ProposalsPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { RevenuePage } from './pages/RevenuePage';
+import { ClientPaymentsPage } from './pages/ClientPaymentsPage';
 import { TimelinePage } from './pages/TimelinePage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { FeedbackPage } from './pages/FeedbackPage';
@@ -81,6 +83,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Projects',
     group: 'Delivery & Resources',
     icon: FolderKanban,
+  },
+  {
+    id: 'client_payments',
+    label: 'Client Payments',
+    group: 'Delivery & Resources',
+    icon: CreditCard,
   },
   {
     id: 'revenue',
@@ -617,6 +625,13 @@ export const App: React.FC = () => {
             {activeTab === 'projects' && (
               <ProjectsPage
                 users={users}
+                initialProjectId={contextId}
+                onClearInitialId={() => setContextId(null)}
+                onNavigate={handleNavigate}
+              />
+            )}
+            {activeTab === 'client_payments' && (
+              <ClientPaymentsPage
                 initialProjectId={contextId}
                 onClearInitialId={() => setContextId(null)}
                 onNavigate={handleNavigate}

@@ -462,12 +462,79 @@ export interface ProjectRevenueItem {
   costs_count: number;
 }
 
+export type PaymentStatus =
+  | 'Pending'
+  | 'Invoiced'
+  | 'Partially Paid'
+  | 'Paid'
+  | 'Overdue';
+
+export type PaymentMethod =
+  | 'Bank Transfer / NEFT'
+  | 'Wire Transfer'
+  | 'UPI'
+  | 'Cheque'
+  | 'Credit Card'
+  | 'Other';
+
+export interface ClientPayment {
+  id: string;
+  client_id: string;
+  project_id: string;
+  phase_name: string;
+  phase_number: number;
+  amount: number;
+  currency: string;
+  percentage: number;
+  status: PaymentStatus;
+  due_date: string;
+  paid_date: string | null;
+  paid_amount: number;
+  invoice_number: string;
+  payment_method: PaymentMethod;
+  transaction_ref: string;
+  notes: string;
+  created_by: string | null;
+  created_at: string;
+  is_overdue?: boolean;
+  client?: { id: string; company: string; contact_name?: string; email?: string } | null;
+  project?: { id: string; name: string; budget?: number; currency?: string; status?: string; service_type?: string } | null;
+  author?: { id: string; name: string; email?: string } | null;
+}
+
+export interface ProjectPaymentGroup {
+  project_id: string;
+  project_name: string;
+  client_id: string;
+  client_name: string;
+  service_type: string;
+  project_status: string;
+  project_budget: number;
+  currency: string;
+  total_phases_amount: number;
+  total_collected: number;
+  collection_progress_pct: number;
+  phases: ClientPayment[];
+}
+
+export interface PaymentsSummary {
+  total_contract_value: number;
+  total_collected: number;
+  total_pending: number;
+  total_overdue: number;
+  collection_rate: number;
+  total_phases: number;
+  paid_phases: number;
+  pending_phases: number;
+}
+
 export type NavTab =
   | 'dashboard'
   | 'leads'
   | 'conversions'
   | 'proposals'
   | 'clients'
+  | 'client_payments'
   | 'projects'
   | 'revenue'
   | 'timeline'

@@ -15,9 +15,11 @@ const dbPath = rawPath ? path.resolve(rawPath) : defaultPath;
 fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 const db = new DatabaseSync(dbPath);
 
-// Enable foreign keys and initialize all tables matching prisma/schema.prisma
+// Enable foreign keys, WAL mode, and busy timeout for concurrent safety
 db.exec(`
   PRAGMA foreign_keys = ON;
+  PRAGMA journal_mode = WAL;
+  PRAGMA busy_timeout = 5000;
 
   CREATE TABLE IF NOT EXISTS "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
@@ -248,6 +250,30 @@ db.exec(`
     FOREIGN KEY ("created_by") REFERENCES "User"("id") ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS "ClientPayment" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "client_id" TEXT NOT NULL,
+    "project_id" TEXT NOT NULL,
+    "phase_name" TEXT NOT NULL,
+    "phase_number" INTEGER NOT NULL DEFAULT 1,
+    "amount" REAL NOT NULL DEFAULT 0,
+    "currency" TEXT NOT NULL DEFAULT 'INR',
+    "percentage" REAL NOT NULL DEFAULT 0,
+    "status" TEXT NOT NULL DEFAULT 'Pending',
+    "due_date" TEXT NOT NULL,
+    "paid_date" TEXT,
+    "paid_amount" REAL NOT NULL DEFAULT 0,
+    "invoice_number" TEXT NOT NULL DEFAULT '',
+    "payment_method" TEXT NOT NULL DEFAULT 'Bank Transfer / NEFT',
+    "transaction_ref" TEXT NOT NULL DEFAULT '',
+    "notes" TEXT NOT NULL DEFAULT '',
+    "created_by" TEXT,
+    "created_at" TEXT NOT NULL,
+    FOREIGN KEY ("client_id") REFERENCES "Client"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("project_id") REFERENCES "Project"("id") ON DELETE CASCADE,
+    FOREIGN KEY ("created_by") REFERENCES "User"("id") ON DELETE SET NULL
+  );
+
   -- Migrate any legacy non-INR records to INR for Indian IT company standardization
   UPDATE "ProjectCost"
   SET "amount" = "amount" * 10
@@ -325,6 +351,56 @@ db.exec(`
 try {
   db.exec('ALTER TABLE "Lead" ADD COLUMN "followup_resource" TEXT NOT NULL DEFAULT ""');
 } catch {}
+
+try {
+  const count = (db.prepare('SELECT count(*) as c FROM "ClientPayment"').get() as any)?.c || 0;
+  if (count === 0) {
+    const projects = db.prepare('SELECT id, client_id, budget, currency, name FROM "Project"').all() as any[];
+    for (const p of projects) {
+      const b = p.budget || 500000;
+      const curr = p.currency || 'INR';
+      const p1 = Math.round(b * 0.25);
+      const p2 = Math.round(b * 0.25);
+      const p3 = Math.round(b * 0.25);
+      const p4 = b - (p1 + p2 + p3);
+
+      const now = new Date();
+      const d1 = new Date(now.getTime() - 40 * 86400000).toISOString();
+      const d2 = new Date(now.getTime() - 10 * 86400000).toISOString();
+      const d3 = new Date(now.getTime() + 20 * 86400000).toISOString();
+      const d4 = new Date(now.getTime() + 60 * 86400000).toISOString();
+
+      const insert = db.prepare(`
+        INSERT INTO "ClientPayment" (
+          "id", "client_id", "project_id", "phase_name", "phase_number", "amount", "currency", "percentage",
+          "status", "due_date", "paid_date", "paid_amount", "invoice_number", "payment_method", "transaction_ref", "notes", "created_at"
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      insert.run(
+        crypto.randomUUID(), p.client_id, p.id, 'Phase 1: Project Kickoff & Advance', 1, p1, curr, 25,
+        'Paid', d1, d1, p1, 'INV-2026-' + Math.floor(1000 + Math.random() * 9000), 'Bank Transfer / NEFT', 'UTR' + Math.floor(10000000 + Math.random() * 90000000), 'Advance payment upon MSA signing', d1
+      );
+
+      insert.run(
+        crypto.randomUUID(), p.client_id, p.id, 'Phase 2: Architecture & Core Build', 2, p2, curr, 25,
+        'Paid', d2, d2, p2, 'INV-2026-' + Math.floor(1000 + Math.random() * 9000), 'Bank Transfer / NEFT', 'UTR' + Math.floor(10000000 + Math.random() * 90000000), 'Milestone sign-off on architecture and core engine', d2
+      );
+
+      insert.run(
+        crypto.randomUUID(), p.client_id, p.id, 'Phase 3: Integration & Client UAT', 3, p3, curr, 25,
+        'Invoiced', d3, null, 0, 'INV-2026-' + Math.floor(1000 + Math.random() * 9000), 'Bank Transfer / NEFT', '', 'Invoice raised upon UAT deployment', new Date().toISOString()
+      );
+
+      insert.run(
+        crypto.randomUUID(), p.client_id, p.id, 'Phase 4: Final Go-Live & Handover', 4, p4, curr, 25,
+        'Pending', d4, null, 0, '', 'Bank Transfer / NEFT', '', 'Payable upon final production sign-off and warranty start', new Date().toISOString()
+      );
+    }
+  }
+} catch (e) {
+  console.warn('ClientPayment initial seed notice:', e);
+}
 
 
 function toIso(val: unknown): string | null {
@@ -476,6 +552,17 @@ function hydrateRelations(table: string, row: any, include?: Record<string, any>
       }
       result.client_notes = notes;
     }
+    if (include.payments) {
+      let payments = db
+        .prepare(`SELECT * FROM "ClientPayment" WHERE client_id = ?`)
+        .all(row.id) as any[];
+      const payOpts = typeof include.payments === 'object' ? include.payments : {};
+      if (payOpts.orderBy) payments = sortRows(payments, payOpts.orderBy);
+      if (payOpts.include) {
+        payments = payments.map((p) => hydrateRelations('ClientPayment', p, payOpts.include));
+      }
+      result.payments = payments;
+    }
   } else if (table === 'ClientNote') {
     if (include.author) {
       const u = row.created_by
@@ -518,6 +605,17 @@ function hydrateRelations(table: string, row: any, include?: Record<string, any>
         costs = costs.map((c) => hydrateRelations('ProjectCost', c, costOpts.include));
       }
       result.project_costs = costs;
+    }
+    if (include.payments) {
+      let payments = db
+        .prepare(`SELECT * FROM "ClientPayment" WHERE project_id = ?`)
+        .all(row.id) as any[];
+      const payOpts = typeof include.payments === 'object' ? include.payments : {};
+      if (payOpts.orderBy) payments = sortRows(payments, payOpts.orderBy);
+      if (payOpts.include) {
+        payments = payments.map((p) => hydrateRelations('ClientPayment', p, payOpts.include));
+      }
+      result.payments = payments;
     }
   } else if (table === 'ProjectCost') {
     if (include.author) {
@@ -639,6 +737,28 @@ function hydrateRelations(table: string, row: any, include?: Record<string, any>
         ? (db.prepare(`SELECT * FROM "Client" WHERE id = ?`).get(row.client_id) as any)
         : null;
       result.client = c ? applySelect(c, include.client.select) : null;
+    }
+    if (include.author) {
+      const u = row.created_by
+        ? (db.prepare(`SELECT * FROM "User" WHERE id = ?`).get(row.created_by) as any)
+        : null;
+      result.author = u ? applySelect(u, include.author.select) : null;
+    }
+  } else if (table === 'ClientPayment') {
+    if (include.client) {
+      const c =
+        (db.prepare(`SELECT * FROM "Client" WHERE id = ?`).get(row.client_id) as any) || null;
+      result.client = c ? applySelect(c, include.client.select) : null;
+    }
+    if (include.project) {
+      const pRaw =
+        (db.prepare(`SELECT * FROM "Project" WHERE id = ?`).get(row.project_id) as any) || null;
+      if (pRaw) {
+        const p = { ...pRaw, progress_override: Boolean(pRaw.progress_override) };
+        result.project = include.project.select ? applySelect(p, include.project.select) : p;
+      } else {
+        result.project = null;
+      }
     }
     if (include.author) {
       const u = row.created_by
@@ -901,6 +1021,21 @@ export const prisma = {
     vendor_or_resource: '',
     amount: 0,
     incurred_date: toIso(new Date()),
+    notes: '',
+    created_by: null,
+    created_at: toIso(new Date()),
+  })),
+  clientPayment: createModelDelegate('ClientPayment', () => ({
+    phase_number: 1,
+    amount: 0,
+    currency: 'INR',
+    percentage: 0,
+    status: 'Pending',
+    paid_date: null,
+    paid_amount: 0,
+    invoice_number: '',
+    payment_method: 'Bank Transfer / NEFT',
+    transaction_ref: '',
     notes: '',
     created_by: null,
     created_at: toIso(new Date()),

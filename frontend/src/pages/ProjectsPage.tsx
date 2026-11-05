@@ -17,6 +17,7 @@ import {
   Server,
   Users,
   Receipt,
+  CreditCard,
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import {
@@ -1079,6 +1080,14 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
+              onClick={() => onNavigate('client_payments', selectedProject.id)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              Client Payments
+            </button>
+            <button
+              type="button"
               onClick={() => openAddCostModal(selectedProject)}
               className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer"
             >
@@ -1670,6 +1679,15 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
                         <td className="py-3.5 px-4 text-right whitespace-nowrap">
                           <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              onClick={() => onNavigate('client_payments', proj.id)}
+                              className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/50 cursor-pointer"
+                              title="View Client Payment Phases"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                              Payments
+                            </button>
                             <button
                               type="button"
                               onClick={() => {

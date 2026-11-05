@@ -22,6 +22,7 @@ model User {
   timeline_tasks    TimelineEntry[] @relation("TimelineAssignee")
   recorded_feedback Feedback[]      @relation("FeedbackRecorder")
   assigned_tickets  BauTicket[]     @relation("BauTicketAssignee")
+  recorded_payments ClientPayment[] @relation("ClientPaymentAuthor")
 }
 
 model Lead {
@@ -93,6 +94,7 @@ model Client {
   client_notes     ClientNote[]
   feedbacks        Feedback[]
   bau_tickets      BauTicket[]
+  payments         ClientPayment[]
 }
 
 model ClientNote {
@@ -130,6 +132,7 @@ model Project {
   feedbacks         Feedback[]
   bau_tickets       BauTicket[]
   resource_assignments ResourceAssignment[]
+  payments          ClientPayment[]
 }
 
 model TimelineEntry {
@@ -248,5 +251,31 @@ model Proposal {
   created_by       String?
   created_at       DateTime  @default(now())
 }
+
+model ClientPayment {
+  id              String    @id @default(uuid())
+  client_id       String
+  project_id      String
+  phase_name      String
+  phase_number    Int       @default(1)
+  amount          Float     @default(0)
+  currency        String    @default("INR")
+  percentage      Float     @default(0)
+  status          String    @default("Pending") // Pending, Invoiced, Partially Paid, Paid, Overdue
+  due_date        DateTime
+  paid_date       DateTime?
+  paid_amount     Float     @default(0)
+  invoice_number  String    @default("")
+  payment_method  String    @default("Bank Transfer / NEFT")
+  transaction_ref String    @default("")
+  notes           String    @default("")
+  created_by      String?
+  created_at      DateTime  @default(now())
+
+  client          Client    @relation(fields: [client_id], references: [id], onDelete: Cascade)
+  project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
+  author          User?     @relation("ClientPaymentAuthor", fields: [created_by], references: [id], onDelete: SetNull)
+}
+
 
 
