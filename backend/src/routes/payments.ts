@@ -339,7 +339,15 @@ paymentsRouter.delete('/:id', async (_req: AuthRequest, res: Response) => {
 // Auto-generate standard milestone phases for a project
 paymentsRouter.post('/generate-phases', async (req: AuthRequest, res: Response) => {
   try {
-    const { project_id, template = '4_phases' } = req.body as { project_id: string; template?: string };
+    const {
+      project_id,
+      template = '4_phases',
+      mark_advance_as_paid = false,
+    } = req.body as {
+      project_id: string;
+      template?: string;
+      mark_advance_as_paid?: boolean;
+    };
 
     if (!project_id) {
       res.status(400).json({ error: 'Project ID is required' });
@@ -394,6 +402,7 @@ paymentsRouter.post('/generate-phases', async (req: AuthRequest, res: Response) 
       const phaseAmount = Math.round((budget * t.pct) / 100);
       const phaseTime = new Date(startDate.getTime() + (totalDuration * (i + 1)) / templatePhases.length);
       const isFirst = i === 0;
+      const shouldMarkPaid = isFirst && Boolean(mark_advance_as_paid);
 
       const p = await prisma.clientPayment.create({
         data: {
@@ -404,14 +413,14 @@ paymentsRouter.post('/generate-phases', async (req: AuthRequest, res: Response) 
           amount: phaseAmount,
           currency,
           percentage: t.pct,
-          status: isFirst ? 'Paid' : i === 1 ? 'Invoiced' : 'Pending',
+          status: shouldMarkPaid ? 'Paid' : 'Pending',
           due_date: phaseTime.toISOString(),
-          paid_date: isFirst ? new Date().toISOString() : null,
-          paid_amount: isFirst ? phaseAmount : 0,
-          invoice_number: isFirst || i === 1 ? `INV-2026-${Math.floor(1000 + Math.random() * 9000)}` : '',
+          paid_date: shouldMarkPaid ? new Date().toISOString() : null,
+          paid_amount: shouldMarkPaid ? phaseAmount : 0,
+          invoice_number: shouldMarkPaid ? `INV-2026-${Math.floor(1000 + Math.random() * 9000)}` : '',
           payment_method: 'Bank Transfer / NEFT',
-          transaction_ref: isFirst ? `UTR${Math.floor(10000000 + Math.random() * 90000000)}` : '',
-          notes: `Auto-generated ${t.pct}% milestone phase for ${project.name}`,
+          transaction_ref: shouldMarkPaid ? `UTR${Math.floor(10000000 + Math.random() * 90000000)}` : '',
+          notes: `Milestone phase (${t.pct}%) for ${project.name}`,
           created_by: req.user?.id || null,
         },
         include: {
@@ -432,3 +441,4 @@ paymentsRouter.post('/generate-phases', async (req: AuthRequest, res: Response) 
     res.status(500).json({ error: 'Failed to generate payment phases' });
   }
 });
+

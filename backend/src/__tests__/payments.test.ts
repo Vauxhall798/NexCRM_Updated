@@ -108,3 +108,4 @@ test('Client Payment Phase Tracking Automated Tests', async (t) => {
   await prisma.project.delete({ where: { id: testProject.id } });
   await prisma.client.delete({ where: { id: testClient.id } });
 });
+

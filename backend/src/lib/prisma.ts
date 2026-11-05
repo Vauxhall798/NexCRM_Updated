@@ -379,12 +379,12 @@ try {
 
       insert.run(
         crypto.randomUUID(), p.client_id, p.id, 'Phase 1: Project Kickoff & Advance', 1, p1, curr, 25,
-        'Paid', d1, d1, p1, 'INV-2026-' + Math.floor(1000 + Math.random() * 9000), 'Bank Transfer / NEFT', 'UTR' + Math.floor(10000000 + Math.random() * 90000000), 'Advance payment upon MSA signing', d1
+        'Pending', d1, null, 0, '', 'Bank Transfer / NEFT', '', 'Milestone 1 scheduled upon MSA signing', d1
       );
 
       insert.run(
         crypto.randomUUID(), p.client_id, p.id, 'Phase 2: Architecture & Core Build', 2, p2, curr, 25,
-        'Paid', d2, d2, p2, 'INV-2026-' + Math.floor(1000 + Math.random() * 9000), 'Bank Transfer / NEFT', 'UTR' + Math.floor(10000000 + Math.random() * 90000000), 'Milestone sign-off on architecture and core engine', d2
+        'Pending', d2, null, 0, '', 'Bank Transfer / NEFT', '', 'Milestone 2 scheduled for architecture and core engine', d2
       );
 
       insert.run(

@@ -141,6 +141,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
   const [generateModalOpen, setGenerateModalOpen] = useState(false);
   const [generateProjectId, setGenerateProjectId] = useState('');
   const [generateTemplate, setGenerateTemplate] = useState<'4_phases' | '3_phases' | '5_phases'>('4_phases');
+  const [markAdvanceAsPaid, setMarkAdvanceAsPaid] = useState(false);
   const [submittingGenerate, setSubmittingGenerate] = useState(false);
 
   // Delete Dialog
@@ -367,6 +368,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
         body: JSON.stringify({
           project_id: generateProjectId,
           template: generateTemplate,
+          mark_advance_as_paid: markAdvanceAsPaid,
         }),
       });
       showToast(res.message);
@@ -423,7 +425,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5">
-            <span className="p-2 rounded-xl bg-brand-50 dark:bg-brand-950/60 text-brand-600 dark:text-brand-400">
+            <span className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
               <CreditCard className="w-5 h-5" />
             </span>
             <div>
@@ -452,18 +454,19 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
             type="button"
             onClick={() => {
               setGenerateProjectId(projects[0]?.id || '');
+              setMarkAdvanceAsPaid(false);
               setGenerateModalOpen(true);
             }}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-brand-200 dark:border-brand-800 bg-brand-50/80 dark:bg-brand-950/40 text-brand-700 dark:text-brand-300 hover:bg-brand-100 transition-colors shadow-xs"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/80 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-colors shadow-xs cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-brand-600" />
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
             Auto-Generate Phases
           </button>
 
           <button
             type="button"
             onClick={() => openCreateModal()}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-brand-600 hover:bg-brand-700 text-white shadow-xs transition-colors"
+            className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             Add Payment Phase
@@ -549,7 +552,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search phase, client, project, invoice or UTR..."
-              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand-500"
+              className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
 
@@ -659,7 +662,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                 <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
-                      <span className="p-1 rounded-md bg-brand-50 text-brand-600 dark:bg-brand-950/60 dark:text-brand-400">
+                      <span className="p-1 rounded-md bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400">
                         <FolderKanban className="w-4 h-4" />
                       </span>
                       <h3 className="font-bold text-slate-900 dark:text-slate-100 text-base">
@@ -694,7 +697,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                     <button
                       type="button"
                       onClick={() => openCreateModal(group.project_id)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl bg-brand-50 hover:bg-brand-100 dark:bg-brand-950/50 dark:hover:bg-brand-900 text-brand-700 dark:text-brand-300 border border-brand-200 dark:border-brand-800 transition-colors"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer"
                     >
                       <Plus className="w-3.5 h-3.5" />
                       Add Phase
@@ -1235,20 +1238,21 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              className="px-4 py-2.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submitting}
-              className="px-5 py-2 text-xs font-bold rounded-xl bg-brand-600 hover:bg-brand-700 text-white disabled:opacity-50 transition-colors shadow-xs"
+              className="inline-flex items-center gap-1.5 px-5 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md disabled:opacity-50 transition-all cursor-pointer"
             >
-              {submitting ? 'Saving...' : editingPayment ? 'Update Phase' : 'Create Phase'}
+              <Check className="w-4 h-4" />
+              {submitting ? 'Saving Phase...' : editingPayment ? 'Confirm & Update Phase' : 'Confirm & Create Phase'}
             </button>
           </div>
         </form>
@@ -1344,19 +1348,20 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setPayingPhase(null)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={submittingPay}
-                className="px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shadow-md disabled:opacity-50 cursor-pointer transition-all"
               >
+                <Check className="w-4 h-4" />
                 {submittingPay ? 'Recording...' : 'Confirm Receipt'}
               </button>
             </div>
@@ -1399,7 +1404,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
               <label
                 className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${
                   generateTemplate === '4_phases'
-                    ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/30'
+                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30'
                     : 'border-slate-200 dark:border-slate-800'
                 }`}
               >
@@ -1408,7 +1413,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                   name="template"
                   checked={generateTemplate === '4_phases'}
                   onChange={() => setGenerateTemplate('4_phases')}
-                  className="mt-0.5"
+                  className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
                 />
                 <div className="text-xs">
                   <div className="font-bold text-slate-900 dark:text-slate-100">
@@ -1423,7 +1428,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
               <label
                 className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${
                   generateTemplate === '3_phases'
-                    ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/30'
+                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30'
                     : 'border-slate-200 dark:border-slate-800'
                 }`}
               >
@@ -1432,7 +1437,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                   name="template"
                   checked={generateTemplate === '3_phases'}
                   onChange={() => setGenerateTemplate('3_phases')}
-                  className="mt-0.5"
+                  className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
                 />
                 <div className="text-xs">
                   <div className="font-bold text-slate-900 dark:text-slate-100">
@@ -1447,7 +1452,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
               <label
                 className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-colors ${
                   generateTemplate === '5_phases'
-                    ? 'border-brand-500 bg-brand-50/50 dark:bg-brand-950/30'
+                    ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/30'
                     : 'border-slate-200 dark:border-slate-800'
                 }`}
               >
@@ -1456,7 +1461,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                   name="template"
                   checked={generateTemplate === '5_phases'}
                   onChange={() => setGenerateTemplate('5_phases')}
-                  className="mt-0.5"
+                  className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
                 />
                 <div className="text-xs">
                   <div className="font-bold text-slate-900 dark:text-slate-100">
@@ -1470,20 +1475,41 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
+          {/* User Consent Toggle for Initial Phase */}
+          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={markAdvanceAsPaid}
+                onChange={(e) => setMarkAdvanceAsPaid(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-slate-300 dark:border-slate-600 cursor-pointer"
+              />
+              <div>
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                  Mark Phase 1 (Advance) as already paid
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                  Keep unchecked (default) so all phases remain &quot;Pending&quot; until you explicitly confirm receiving payment.
+                </span>
+              </div>
+            </label>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setGenerateModalOpen(false)}
-              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer transition-colors"
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={submittingGenerate}
-              className="px-5 py-2 text-xs font-bold rounded-xl bg-brand-600 hover:bg-brand-700 text-white shadow-xs"
+              className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md disabled:opacity-50 transition-all cursor-pointer"
             >
-              {submittingGenerate ? 'Generating...' : 'Generate Phases'}
+              <Sparkles className="w-4 h-4" />
+              {submittingGenerate ? 'Generating...' : 'Confirm & Generate Phases'}
             </button>
           </div>
         </form>
@@ -1502,3 +1528,4 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
     </div>
   );
 };
+
