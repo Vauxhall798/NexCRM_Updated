@@ -41,6 +41,7 @@ db.exec(`
     "status" TEXT NOT NULL DEFAULT 'New',
     "owner_id" TEXT,
     "next_followup" TEXT,
+    "followup_resource" TEXT NOT NULL DEFAULT '',
     "notes" TEXT NOT NULL DEFAULT '',
     "created_at" TEXT NOT NULL,
     FOREIGN KEY ("owner_id") REFERENCES "User"("id") ON DELETE SET NULL
@@ -320,6 +321,11 @@ db.exec(`
       "role" = 'ADMIN'
   WHERE "email" = 'admin@nexcrm.io';
 `);
+
+try {
+  db.exec('ALTER TABLE "Lead" ADD COLUMN "followup_resource" TEXT NOT NULL DEFAULT ""');
+} catch {}
+
 
 function toIso(val: unknown): string | null {
   if (val === null || val === undefined) return null;
@@ -781,6 +787,7 @@ export const prisma = {
     status: 'New',
     owner_id: null,
     next_followup: null,
+    followup_resource: '',
     notes: '',
     created_at: toIso(new Date()),
   })),

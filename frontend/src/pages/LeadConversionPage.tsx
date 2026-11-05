@@ -15,6 +15,16 @@ import {
   Rocket,
   Building2,
   FolderKanban,
+  UserCheck,
+  Calendar,
+  ChevronRight,
+  ChevronDown,
+  ChevronUp,
+  FileText,
+  Phone,
+  Handshake,
+  Info,
+  ShieldCheck,
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import {
@@ -22,6 +32,7 @@ import {
   ConversionHistoryItem,
   ConversionOutcome,
   ConversionSummary,
+  Lead,
   NavTab,
   NotConvertedReason,
   ProjectStatus,
@@ -66,6 +77,8 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
   const [search, setSearch] = useState('');
+  const [showFlowGuide, setShowFlowGuide] = useState(false);
+  const [lifecycleLeadCounts, setLifecycleLeadCounts] = useState<Record<string, number>>({});
 
   // Outcome Modal State
   const [activeConversion, setActiveConversion] = useState<Conversion | null>(null);
@@ -180,11 +193,19 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
   const fetchConversions = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch<{ conversions: Conversion[]; summary: ConversionSummary }>(
-        '/conversions'
-      );
-      setConversions(res.conversions);
-      setSummary(res.summary);
+      const [convRes, leadsRes] = await Promise.all([
+        apiFetch<{ conversions: Conversion[]; summary: ConversionSummary }>('/conversions'),
+        apiFetch<{ leads: Lead[] }>('/leads').catch(() => null),
+      ]);
+      setConversions(convRes.conversions);
+      setSummary(convRes.summary);
+      if (leadsRes?.leads) {
+        const counts: Record<string, number> = {};
+        leadsRes.leads.forEach((l) => {
+          counts[l.status] = (counts[l.status] || 0) + 1;
+        });
+        setLifecycleLeadCounts(counts);
+      }
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to load conversions', 'error');
     } finally {
@@ -266,7 +287,7 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
     if (!conv || conv.outcome === targetCol) return;
 
     if (targetCol === 'in_progress') {
-      // Optimistically move card back to In Progress immediately
+      // Optimistically move card back to Negotiation immediately
       setConversions((prev) =>
         prev.map((c) => (c.id === conv.id ? { ...c, outcome: 'in_progress' } : c))
       );
@@ -275,10 +296,10 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
           method: 'PUT',
           body: JSON.stringify({
             outcome: 'in_progress',
-            comment: conv.comment || 'Moved back to In Progress via Kanban drag-and-drop',
+            comment: conv.comment || 'Moved back to Negotiation via Kanban drag-and-drop',
           }),
         });
-        showToast(`Moved "${conv.lead.company}" to In Progress`, 'info');
+        showToast(`Moved "${conv.lead.company}" to Negotiation`, 'info');
         fetchConversions();
       } catch (err) {
         showToast(err instanceof Error ? err.message : 'Failed to move lead', 'error');
@@ -339,7 +360,7 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
       } else if (targetOutcome === 'not_converted') {
         showToast(`Marked "${activeConversion.lead.company}" as Not Converted (${reason}).`, 'info');
       } else {
-        showToast(`Moved "${activeConversion.lead.company}" back to In Progress.`, 'info');
+        showToast(`Moved "${activeConversion.lead.company}" back to Negotiation.`, 'info');
       }
 
       setActiveConversion(null);
@@ -361,6 +382,69 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
     }
   };
 
+  const conversionStages = [
+    {
+      id: 1,
+      name: 'New Lead',
+      statusKey: 'New',
+      badge: 'Capture',
+      description: 'Inbound sourced from Web, LinkedIn, Cold Outreach or Referral',
+      action: 'Qualified on budget & service fit',
+      icon: Sparkles,
+      color: 'sky',
+    },
+    {
+      id: 2,
+      name: 'Contacted',
+      statusKey: 'Contacted',
+      badge: 'Discovery',
+      description: 'Outreach call initiated, discovery notes logged by sales team',
+      action: 'Assigned resource conducts follow-ups',
+      icon: Phone,
+      color: 'indigo',
+    },
+    {
+      id: 3,
+      name: 'Meeting Scheduled',
+      statusKey: 'Meeting scheduled',
+      badge: 'Solutioning',
+      description: 'Technical demo & solution architecture deep-dive',
+      action: 'Scope & deliverables defined',
+      icon: Calendar,
+      color: 'purple',
+    },
+    {
+      id: 4,
+      name: 'Proposal Sent',
+      statusKey: 'Proposal sent',
+      badge: 'AI Proposal',
+      description: 'Gemini Argon AI generates custom dynamic proposal & HTML quote',
+      action: 'Sent to client with milestone timeline',
+      icon: FileText,
+      color: 'amber',
+    },
+    {
+      id: 5,
+      name: 'Negotiation',
+      statusKey: 'Negotiation',
+      badge: 'Commercials',
+      description: 'Pre-sales follow-up on commercial terms, SLAs & SOW revisions',
+      action: 'Resource follow-up tasks active',
+      icon: Handshake,
+      color: 'cyan',
+    },
+    {
+      id: 6,
+      name: 'Converted',
+      statusKey: 'Converted',
+      badge: 'Won & Onboarded',
+      description: 'Contract signed! Auto-creates Client profile & launches Project',
+      action: 'Project kicked off with allocated resources',
+      icon: Rocket,
+      color: 'emerald',
+    },
+  ];
+
   const columns: Array<{
     key: ConversionOutcome;
     title: string;
@@ -369,9 +453,9 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
   }> = [
     {
       key: 'in_progress',
-      title: 'In Progress',
-      subtitle: 'Evaluating proposal & contract terms',
-      badgeClass: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+      title: 'Negotiation',
+      subtitle: 'Evaluating proposal & commercial contract terms',
+      badgeClass: 'bg-cyan-500/10 text-cyan-700 dark:text-cyan-300 border-cyan-500/20',
     },
     {
       key: 'converted',
@@ -438,6 +522,167 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
         </div>
       </div>
 
+      {/* Visual Pipeline Flow of How Lead Gets Converted */}
+      <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-5 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="p-1.5 rounded-lg bg-[#EEF8FA] dark:bg-cyan-950/60 text-[#3596B0]">
+                <FolderKanban className="w-4 h-4" />
+              </span>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Lead Conversion Journey &amp; Pipeline Flow
+              </h3>
+              <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-cyan-50 text-cyan-800 border border-cyan-200 dark:bg-cyan-950/50 dark:text-cyan-300 dark:border-cyan-800">
+                6-Stage Lifecycle
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Visual roadmap of how inbound leads are qualified, negotiated with assigned resources, and converted to active onboarded clients.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowFlowGuide(!showFlowGuide)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors shrink-0"
+          >
+            <Info className="w-3.5 h-3.5 text-cyan-600" />
+            <span>{showFlowGuide ? 'Hide Conversion Guide' : 'How Lead Conversion Works'}</span>
+            {showFlowGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+
+        {/* 6-Stage Stepper Flow */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+          {conversionStages.map((st, idx) => {
+            const Icon = st.icon;
+            const count = lifecycleLeadCounts[st.statusKey] ?? 0;
+            const isNegotiation = st.statusKey === 'Negotiation';
+            const isConverted = st.statusKey === 'Converted';
+            return (
+              <div
+                key={st.id}
+                className={`relative flex flex-col p-3 rounded-xl border transition-all ${
+                  isNegotiation
+                    ? 'bg-cyan-50/60 dark:bg-cyan-950/30 border-cyan-300 dark:border-cyan-800 ring-1 ring-cyan-400/30 shadow-xs'
+                    : isConverted
+                    ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 ring-1 ring-emerald-400/30 shadow-xs'
+                    : 'bg-slate-50/70 dark:bg-slate-800/40 border-slate-200 dark:border-slate-800 hover:border-slate-300'
+                }`}
+              >
+                <div className="flex items-center justify-between gap-1 mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-5 h-5 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-center shrink-0">
+                      {st.id}
+                    </span>
+                    <Icon className={`w-3.5 h-3.5 ${
+                      isNegotiation ? 'text-cyan-600' : isConverted ? 'text-emerald-600' : 'text-slate-500'
+                    }`} />
+                  </div>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                    isNegotiation
+                      ? 'bg-cyan-100 dark:bg-cyan-900/60 text-cyan-800 dark:text-cyan-200'
+                      : isConverted
+                      ? 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-200'
+                      : 'bg-slate-200/70 dark:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}>
+                    {count} {count === 1 ? 'lead' : 'leads'}
+                  </span>
+                </div>
+
+                <div className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                  {st.name}
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400 line-clamp-2 mt-0.5">
+                  {st.description}
+                </div>
+                <div className="mt-2 pt-1.5 border-t border-slate-200/60 dark:border-slate-700/60 text-[9px] font-semibold text-cyan-700 dark:text-cyan-300 flex items-center gap-1">
+                  <span>{st.action}</span>
+                </div>
+
+                {idx < 5 && (
+                  <div className="hidden lg:block absolute -right-2 top-1/2 -translate-y-1/2 z-10 text-slate-300 dark:text-slate-600 pointer-events-none">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Collapsible Detailed Guide Explaining Conversion Lifecycle */}
+        {showFlowGuide && (
+          <div className="p-4 rounded-xl bg-slate-50/90 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 space-y-3">
+            <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-cyan-600" />
+              <span>How NexCRM Converts Inbound Leads into Enterprise Clients</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-1">
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-sky-100 text-sky-700 font-bold text-[10px] flex items-center justify-center">1</span>
+                  Capture &amp; Qualification
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Leads enter via Website, LinkedIn, Outreach or Referrals. Assigned an owner, budget in INR, and core service fit.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 font-bold text-[10px] flex items-center justify-center">2</span>
+                  Discovery &amp; Resource Follow-up
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Sales initiates contact. Work notes and follow-up tasks are assigned to technical resources with automated author tracking.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-purple-100 text-purple-700 font-bold text-[10px] flex items-center justify-center">3</span>
+                  Solution Demo &amp; Scoping
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Discovery meeting scheduled. Solutions architect defines project scope, architecture, milestone roadmap, and delivery timeline.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 font-bold text-[10px] flex items-center justify-center">4</span>
+                  AI Proposal Generation
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  NexCRM's Gemini Argon AI engine dynamically synthesizes a proposal, HTML preview, technical deliverables, and commercial quote.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-cyan-100 text-cyan-700 font-bold text-[10px] flex items-center justify-center">5</span>
+                  Negotiation &amp; Commercial Terms
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Active negotiation on SOW and commercial pricing. Assigned follow-up resources address client feedback until deal closure.
+                </p>
+              </div>
+
+              <div className="p-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-1">
+                <div className="font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                  <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 font-bold text-[10px] flex items-center justify-center">6</span>
+                  Automatic Conversion &amp; Kickoff
+                </div>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                  Marking Converted instantly creates a linked Client profile, stores conversion audit history, and launches Project Onboarding.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* 5 Summary Cards at the Top */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs">
@@ -469,12 +714,12 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
           </div>
         </div>
 
-        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-900/60 shadow-xs">
-          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-amber-600 dark:text-amber-400">
-            <span>In Progress</span>
-            <Clock className="w-4 h-4" />
+        <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-cyan-200/80 dark:border-cyan-900/60 shadow-xs">
+          <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+            <span>Negotiation</span>
+            <Handshake className="w-4 h-4" />
           </div>
-          <div className="text-2xl font-bold text-amber-700 dark:text-amber-300 mt-1">
+          <div className="text-2xl font-bold text-cyan-700 dark:text-cyan-300 mt-1">
             {summary.in_progress}
           </div>
         </div>
@@ -604,6 +849,23 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
                             </span>
                           </div>
 
+                          {(conv.lead.followup_resource || conv.lead.next_followup) && (
+                            <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-800 text-xs space-y-1">
+                              {conv.lead.followup_resource && (
+                                <div className="flex items-center gap-1.5 text-cyan-800 dark:text-cyan-300 font-semibold truncate">
+                                  <UserCheck className="w-3.5 h-3.5 text-cyan-600 shrink-0" />
+                                  <span className="truncate">Resource: {conv.lead.followup_resource}</span>
+                                </div>
+                              )}
+                              {conv.lead.next_followup && (
+                                <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400">
+                                  <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                                  <span>Follow-up: {formatDate(conv.lead.next_followup)}</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
                           {conv.outcome === 'not_converted' && conv.reason && (
                             <div className="p-2.5 rounded-lg bg-rose-50/70 dark:bg-rose-950/30 border border-rose-200/70 dark:border-rose-900/60 text-xs">
                               <div className="font-semibold text-rose-700 dark:text-rose-300">
@@ -698,7 +960,7 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
                                       onClick={() => openOutcomeModal(conv, 'in_progress')}
                                       className="px-2.5 py-1 rounded-lg text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                     >
-                                      Reopen
+                                      Back to Negotiation
                                     </button>
                                   </div>
                                 </div>
@@ -724,7 +986,7 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
                                     onClick={() => openOutcomeModal(conv, 'in_progress')}
                                     className="px-2.5 py-1 rounded-lg text-[11px] font-medium border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                   >
-                                    Reopen
+                                    Back to Negotiation
                                   </button>
                                 </div>
                               </>
@@ -749,6 +1011,7 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
                   <th className="py-3.5 px-4">Lead &amp; Company</th>
                   <th className="py-3.5 px-4">Service</th>
                   <th className="py-3.5 px-4">Outcome</th>
+                  <th className="py-3.5 px-4">Assigned Resource &amp; Follow-up</th>
                   <th className="py-3.5 px-4">Deal Value</th>
                   <th className="py-3.5 px-4">Reason / Notes</th>
                   <th className="py-3.5 px-4">Decided Date</th>
@@ -784,8 +1047,25 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
                           ? 'Converted'
                           : conv.outcome === 'not_converted'
                           ? 'Not Converted'
-                          : 'In Progress'}
+                          : 'Negotiation'}
                       </span>
+                    </td>
+
+                    <td className="py-3.5 px-4 text-xs">
+                      {conv.lead.followup_resource ? (
+                        <div className="flex items-center gap-1 text-[11px] font-semibold text-cyan-800 dark:text-cyan-300 bg-cyan-50/80 dark:bg-cyan-950/60 px-2 py-0.5 rounded-md border border-cyan-200/60 dark:border-cyan-800/60 w-fit">
+                          <UserCheck className="w-3 h-3 text-cyan-600 shrink-0" />
+                          <span className="truncate max-w-[150px]">{conv.lead.followup_resource}</span>
+                        </div>
+                      ) : (
+                        <span className="text-slate-400">—</span>
+                      )}
+                      {conv.lead.next_followup && (
+                        <div className="text-[10px] text-slate-500 mt-0.5 flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          <span>{formatDate(conv.lead.next_followup)}</span>
+                        </div>
+                      )}
                     </td>
 
                     <td className="py-3.5 px-4 font-semibold text-xs text-slate-900 dark:text-slate-100">
@@ -861,7 +1141,7 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
             ? `Confirm Conversion — ${activeConversion?.lead.company}`
             : targetOutcome === 'not_converted'
             ? `Mark as Not Converted — ${activeConversion?.lead.company}`
-            : `Move Back to In Progress — ${activeConversion?.lead.company}`
+            : `Move Back to Negotiation — ${activeConversion?.lead.company}`
         }
         subtitle="Any change in outcome is logged in the conversion audit trail."
         maxWidth="max-w-lg"
@@ -903,11 +1183,11 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
                 onClick={() => setTargetOutcome('in_progress')}
                 className={`py-2 text-xs font-semibold rounded-lg transition-colors ${
                   targetOutcome === 'in_progress'
-                    ? 'bg-amber-600 text-white shadow-xs'
+                    ? 'bg-cyan-600 text-white shadow-xs'
                     : 'text-slate-600 dark:text-slate-400'
                 }`}
               >
-                In Progress
+                Negotiation
               </button>
             </div>
 

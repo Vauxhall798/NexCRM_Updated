@@ -165,12 +165,14 @@ const leadInputSchema = z.object({
   status: z.enum(LEAD_STATUSES).default('New'),
   owner_id: z.string().nullable().optional(),
   next_followup: z.string().nullable().optional(),
+  followup_resource: z.string().optional().default(''),
   notes: z.string().optional().default(''),
 });
 
 const noteSchema = z.object({
   text: z.string().min(1, 'Note text cannot be empty'),
   next_followup: z.string().nullable().optional(),
+  followup_resource: z.string().optional(),
   status: z.enum(LEAD_STATUSES).optional(),
 });
 
@@ -291,6 +293,7 @@ leadsRouter.post('/', async (req: AuthRequest, res: Response) => {
       status: data.status,
       owner_id: data.owner_id || null,
       next_followup: data.next_followup ? new Date(data.next_followup) : null,
+      followup_resource: data.followup_resource?.trim() || '',
       notes: data.notes?.trim() || '',
     },
   });
@@ -358,6 +361,9 @@ leadsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       ...(data.owner_id !== undefined ? { owner_id: data.owner_id || null } : {}),
       ...(data.next_followup !== undefined
         ? { next_followup: data.next_followup ? new Date(data.next_followup) : null }
+        : {}),
+      ...(data.followup_resource !== undefined
+        ? { followup_resource: data.followup_resource.trim() }
         : {}),
       ...(data.notes !== undefined ? { notes: data.notes.trim() } : {}),
     },
@@ -453,12 +459,15 @@ leadsRouter.post('/:id/notes', async (req: AuthRequest, res: Response) => {
     return;
   }
 
-  const { text, next_followup, status } = parsed.data;
+  const { text, next_followup, followup_resource, status } = parsed.data;
 
-  // If next_followup or status is provided, update the lead
+  // If next_followup, followup_resource, or status is provided, update the lead
   const updateData: any = {};
   if (next_followup !== undefined) {
     updateData.next_followup = next_followup ? new Date(next_followup) : null;
+  }
+  if (followup_resource !== undefined) {
+    updateData.followup_resource = followup_resource.trim();
   }
   if (status && status !== lead.status) {
     updateData.status = status;

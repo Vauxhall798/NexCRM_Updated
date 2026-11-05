@@ -69,8 +69,25 @@ test('Lead Work Notes & Followup Author Tests', async (t) => {
     assert.equal(latest.author?.name, 'login 1');
   });
 
+  await t.test('3. Stores and updates assigned followup_resource until Lead conversion', async () => {
+    const updated = await prisma.lead.update({
+      where: { id: testLead.id },
+      data: {
+        followup_resource: 'Priya Sharma (Sr. Solutions Architect)',
+        status: 'Negotiation',
+      },
+    });
+
+    assert.equal(updated.followup_resource, 'Priya Sharma (Sr. Solutions Architect)');
+    assert.equal(updated.status, 'Negotiation');
+
+    const fetched = await prisma.lead.findUnique({ where: { id: testLead.id } });
+    assert.equal(fetched.followup_resource, 'Priya Sharma (Sr. Solutions Architect)');
+  });
+
   // Cleanup
   await prisma.leadNote.deleteMany({ where: { lead_id: testLead.id } });
   await prisma.lead.delete({ where: { id: testLead.id } });
   await prisma.user.delete({ where: { id: testUser.id } });
 });
+

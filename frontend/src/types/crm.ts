@@ -53,6 +53,7 @@ export interface Lead {
   status: LeadStatus;
   owner_id: string | null;
   next_followup: string | null;
+  followup_resource?: string;
   notes: string;
   created_at: string;
   owner?: User | null;

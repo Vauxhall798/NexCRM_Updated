@@ -36,8 +36,9 @@ model Lead {
   currency      String      @default("USD")
   status        String      @default("New") // New, Contacted, Meeting scheduled, Proposal sent, Negotiation
   owner_id      String?
-  next_followup DateTime?
-  notes         String      @default("")
+  next_followup     DateTime?
+  followup_resource String      @default("")
+  notes             String      @default("")
   created_at    DateTime    @default(now())
 
   owner         User?       @relation("LeadOwner", fields: [owner_id], references: [id], onDelete: SetNull)
