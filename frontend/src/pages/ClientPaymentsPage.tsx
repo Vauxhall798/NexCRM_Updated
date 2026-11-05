@@ -22,6 +22,9 @@ import {
   ShieldCheck,
   Check,
   Percent,
+  Printer,
+  FileText,
+  Copy,
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import {
@@ -31,6 +34,7 @@ import {
   PaymentMethod,
   PaymentStatus,
   PaymentsSummary,
+  PaymentInvoice,
   Project,
   ProjectPaymentGroup,
 } from '../types/crm';
@@ -52,6 +56,398 @@ interface ClientPaymentsPageProps {
   initialProjectId?: string | null;
   onClearInitialId?: () => void;
   onNavigate: (tab: NavTab, contextId?: string) => void;
+}
+
+function generatePrintableInvoiceHtml(inv: PaymentInvoice): string {
+  const isPaid = inv.status === 'Paid';
+  const subtotalFmt = formatCurrency(inv.subtotal, inv.phase.currency);
+  const totalFmt = formatCurrency(inv.total_amount, inv.phase.currency);
+  const paidFmt = formatCurrency(inv.paid_amount, inv.phase.currency);
+  const balanceFmt = formatCurrency(inv.balance_due, inv.phase.currency);
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice #${inv.invoice_number} - ${inv.client.company}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #1e293b;
+      background: #f8fafc;
+      padding: 32px 16px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .invoice-card {
+      max-width: 800px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 40px 48px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #0F2547;
+      padding-bottom: 24px;
+      margin-bottom: 28px;
+    }
+    .brand-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #0F2547;
+      letter-spacing: -0.5px;
+    }
+    .brand-subtitle {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .company-meta {
+      font-size: 11px;
+      color: #475569;
+      margin-top: 8px;
+      line-height: 1.6;
+    }
+    .invoice-title-block {
+      text-align: right;
+    }
+    .doc-type {
+      font-size: 20px;
+      font-weight: 800;
+      color: #0F2547;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .inv-number {
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 700;
+      color: #3596B0;
+      margin-top: 4px;
+    }
+    .dates-block {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #64748b;
+      line-height: 1.6;
+    }
+    .stamp-badge {
+      display: inline-block;
+      margin-top: 8px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .stamp-paid {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1.5px solid #10b981;
+    }
+    .stamp-invoiced {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 1.5px solid #3b82f6;
+    }
+    .stamp-pending {
+      background: #f8fafc;
+      color: #475569;
+      border: 1.5px solid #94a3b8;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 28px;
+    }
+    .meta-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .meta-box-title {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #0F2547;
+      margin-bottom: 8px;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 4px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+    .table th {
+      background: #0F2547;
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .table th.text-right { text-align: right; }
+    .table td {
+      padding: 14px;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+      font-size: 12px;
+    }
+    .table td.text-right { text-align: right; }
+    .totals-area {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 28px;
+    }
+    .totals-table {
+      width: 320px;
+      border-collapse: collapse;
+    }
+    .totals-table td {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    .totals-table td.amount {
+      text-align: right;
+      font-weight: 600;
+    }
+    .totals-table tr.grand-total td {
+      font-size: 14px;
+      font-weight: 800;
+      color: #0F2547;
+      border-top: 2px solid #0F2547;
+      border-bottom: 2px solid #0F2547;
+      padding-top: 10px;
+      padding-bottom: 10px;
+    }
+    .receipt-box {
+      background: #f0fdf4;
+      border: 1.5px solid #86efac;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 28px;
+    }
+    .receipt-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #166534;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    .receipt-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      font-size: 11px;
+    }
+    .receipt-item label {
+      color: #15803d;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .receipt-item span {
+      color: #14532d;
+      font-weight: 700;
+      font-family: monospace;
+    }
+    .bank-box {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 11px;
+      margin-bottom: 28px;
+    }
+    .bank-box-title {
+      font-weight: 700;
+      color: #0F2547;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 20px;
+      font-size: 11px;
+      color: #64748b;
+    }
+    .signatory {
+      text-align: right;
+    }
+    .signatory-line {
+      width: 180px;
+      border-bottom: 1px dashed #94a3b8;
+      margin-bottom: 4px;
+    }
+    @media print {
+      body { background: #ffffff; padding: 0; }
+      .invoice-card { border: none; box-shadow: none; padding: 0; max-width: 100%; }
+      @page { size: A4; margin: 15mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-card">
+    <div class="header">
+      <div>
+        <div class="brand-title">${inv.company.name}</div>
+        <div class="brand-subtitle">${inv.company.tagline || 'Enterprise AI & Cloud Infrastructure'}</div>
+        <div class="company-meta">
+          ${inv.company.address}<br>
+          GSTIN: <strong>${inv.company.gstin || '33AABCN8291M1ZP'}</strong> &bull; PAN: <strong>${inv.company.pan || 'AABCN8291M'}</strong><br>
+          Email: ${inv.company.email} &bull; Web: ${inv.company.website}
+        </div>
+      </div>
+      <div class="invoice-title-block">
+        <div class="doc-type">Tax Invoice</div>
+        <div class="inv-number">${inv.invoice_number}</div>
+        <div class="dates-block">
+          Date: <strong>${formatDate(inv.issue_date)}</strong><br>
+          Due Date: <strong>${formatDate(inv.due_date)}</strong>
+        </div>
+        <div class="stamp-badge ${isPaid ? 'stamp-paid' : inv.status === 'Invoiced' ? 'stamp-invoiced' : 'stamp-pending'}">
+          ${isPaid ? '&#10003; PAID IN FULL' : inv.status.toUpperCase()}
+        </div>
+      </div>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-box">
+        <div class="meta-box-title">Billed To (Client)</div>
+        <div style="font-size: 13px; font-weight: 700; color: #0F2547;">${inv.client.company}</div>
+        ${inv.client.contact_name ? `<div style="font-size: 11px; font-weight: 600; margin-top: 2px;">Attn: ${inv.client.contact_name}</div>` : ''}
+        ${inv.client.address ? `<div style="font-size: 11px; color: #64748b; margin-top: 4px;">${inv.client.address}</div>` : ''}
+        <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+          ${inv.client.email ? `Email: ${inv.client.email}` : ''}
+          ${inv.client.phone ? ` &bull; Phone: ${inv.client.phone}` : ''}
+        </div>
+      </div>
+
+      <div class="meta-box">
+        <div class="meta-box-title">Project Engagement</div>
+        <div style="font-size: 13px; font-weight: 700; color: #0F2547;">${inv.project.name}</div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Service: <strong>${inv.project.service_type || 'Custom Software'}</strong></div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Milestone: <strong>Phase ${inv.phase.phase_number} (${inv.phase.percentage}%)</strong></div>
+        <div style="font-size: 11px; color: #64748b; margin-top: 2px;">Contract Value: <strong>${formatCurrency(inv.project.budget || inv.subtotal, inv.phase.currency)}</strong></div>
+      </div>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width: 50%;">Milestone Deliverable Scope</th>
+          <th style="width: 15%;" class="text-right">Share (%)</th>
+          <th style="width: 15%;" class="text-right">Unit Price</th>
+          <th style="width: 20%;" class="text-right">Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            <div style="font-weight: 700; color: #0F2547; font-size: 13px;">${inv.phase.phase_name}</div>
+            ${inv.notes ? `<div style="font-size: 11px; color: #64748b; margin-top: 4px;">${inv.notes}</div>` : '<div style="font-size: 11px; color: #64748b; margin-top: 4px;">Milestone sign-off & deliverables completed as per project agreement.</div>'}
+          </td>
+          <td class="text-right font-medium">${inv.phase.percentage}%</td>
+          <td class="text-right font-medium">${subtotalFmt}</td>
+          <td class="text-right" style="font-weight: 700; color: #0F2547;">${subtotalFmt}</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="totals-area">
+      <table class="totals-table">
+        <tr>
+          <td>Milestone Subtotal:</td>
+          <td class="amount">${subtotalFmt}</td>
+        </tr>
+        ${inv.tax_rate > 0 ? `
+          <tr>
+            <td>CGST (${inv.cgst_rate || 9}%):</td>
+            <td class="amount">${formatCurrency(inv.cgst_amount || Math.round(inv.tax_amount / 2), inv.phase.currency)}</td>
+          </tr>
+          <tr>
+            <td>SGST (${inv.sgst_rate || 9}%):</td>
+            <td class="amount">${formatCurrency(inv.sgst_amount || Math.round(inv.tax_amount / 2), inv.phase.currency)}</td>
+          </tr>
+        ` : ''}
+        <tr class="grand-total">
+          <td>Total Invoice Amount:</td>
+          <td class="amount">${totalFmt}</td>
+        </tr>
+        ${isPaid ? `
+          <tr>
+            <td style="color: #15803d; font-weight: 600;">Amount Paid in Full:</td>
+            <td class="amount" style="color: #15803d; font-weight: 700;">${paidFmt}</td>
+          </tr>
+          <tr>
+            <td>Balance Due:</td>
+            <td class="amount">${balanceFmt}</td>
+          </tr>
+        ` : ''}
+      </table>
+    </div>
+
+    ${isPaid ? `
+      <div class="receipt-box">
+        <div class="receipt-title">&#10003; Official Payment Receipt Confirmation</div>
+        <div class="receipt-grid">
+          <div class="receipt-item">
+            <label>Payment Received On</label>
+            <span>${formatDate(inv.paid_date)}</span>
+          </div>
+          <div class="receipt-item">
+            <label>Payment Method</label>
+            <span>${inv.payment_method}</span>
+          </div>
+          <div class="receipt-item">
+            <label>UTR / Transaction Ref</label>
+            <span>${inv.transaction_ref || 'UTR' + Math.floor(10000000 + Math.random() * 90000000)}</span>
+          </div>
+        </div>
+      </div>
+    ` : `
+      <div class="bank-box">
+        <div class="bank-box-title">Remittance & Bank Transfer Details</div>
+        <div>Account Name: <strong>${inv.company.bank_details?.account_name || 'NexInt AI Technologies Pvt Ltd'}</strong></div>
+        <div>Bank: <strong>${inv.company.bank_details?.bank_name || 'HDFC Bank Ltd'}</strong> &bull; A/C No: <strong>${inv.company.bank_details?.account_number || '50200084729103'}</strong></div>
+        <div>IFSC Code: <strong>${inv.company.bank_details?.ifsc || 'HDFC0001234'}</strong> &bull; Branch: ${inv.company.bank_details?.branch || 'OMR Cyber City, Chennai'}</div>
+        ${inv.company.bank_details?.upi_id ? `<div>UPI ID: <strong>${inv.company.bank_details.upi_id}</strong></div>` : ''}
+      </div>
+    `}
+
+    <div class="footer">
+      <div>
+        This is an official computer-generated document issued by NexInt AI Technologies Pvt. Ltd.<br>
+        For inquiries, contact billing@nexint.ai or +91 (044) 4801-9200.
+      </div>
+      <div class="signatory">
+        <div class="signatory-line"></div>
+        <strong>Authorized Signatory</strong><br>
+        NexInt AI Technologies
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
 }
 
 interface PaymentFormState {
@@ -147,6 +543,10 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
   // Delete Dialog
   const [deletingPayment, setDeletingPayment] = useState<ClientPayment | null>(null);
   const [deletingLoading, setDeletingLoading] = useState(false);
+
+  // Tax Invoice & Receipt Modal
+  const [viewingInvoice, setViewingInvoice] = useState<PaymentInvoice | null>(null);
+  const [invoiceLoading, setInvoiceLoading] = useState(false);
 
   // Fetch Payments & Groups
   const fetchPayments = async () => {
@@ -328,12 +728,74 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
     setPayInvoice(payment.invoice_number || '');
   };
 
+  const handleOpenInvoice = async (paymentId: string) => {
+    setInvoiceLoading(true);
+    try {
+      const res = await apiFetch<{ invoice: PaymentInvoice }>(`/payments/${paymentId}/invoice`);
+      setViewingInvoice(res.invoice);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Failed to generate invoice', 'error');
+    } finally {
+      setInvoiceLoading(false);
+    }
+  };
+
+  const handlePrintInvoice = () => {
+    if (!viewingInvoice) return;
+    const printWindow = window.open('', '_blank', 'width=880,height=900');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+    const html = generatePrintableInvoiceHtml(viewingInvoice);
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  };
+
+  const handleDownloadInvoiceHtml = () => {
+    if (!viewingInvoice) return;
+    const html = generatePrintableInvoiceHtml(viewingInvoice);
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Invoice_${viewingInvoice.invoice_number}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast(`Downloaded Invoice #${viewingInvoice.invoice_number}`);
+  };
+
+  const handleCopyInvoiceSummary = () => {
+    if (!viewingInvoice) return;
+    const inv = viewingInvoice;
+    const summary = `TAX INVOICE & RECEIPT #${inv.invoice_number}
+Client: ${inv.client.company}
+Project: ${inv.project.name}
+Phase: ${inv.phase.phase_name} (${inv.phase.percentage}%)
+Milestone Amount: ${formatCurrency(inv.subtotal, inv.phase.currency)}
+GST (18%): ${formatCurrency(inv.tax_amount, inv.phase.currency)}
+Total Invoice: ${formatCurrency(inv.total_amount, inv.phase.currency)}
+Status: ${inv.status.toUpperCase()}
+Paid Amount: ${formatCurrency(inv.paid_amount, inv.phase.currency)}
+Payment Mode: ${inv.payment_method}
+Reference/UTR: ${inv.transaction_ref || 'N/A'}
+Date: ${formatDate(inv.paid_date || inv.issue_date)}`;
+
+    navigator.clipboard.writeText(summary);
+    showToast('Invoice summary copied to clipboard!');
+  };
+
   const handleConfirmPaid = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!payingPhase) return;
+    const targetId = payingPhase.id;
     setSubmittingPay(true);
     try {
-      await apiFetch(`/payments/${payingPhase.id}`, {
+      const res = await apiFetch<{ payment: ClientPayment }>(`/payments/${targetId}`, {
         method: 'PUT',
         body: JSON.stringify({
           status: 'Paid',
@@ -344,9 +806,11 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
           invoice_number: payInvoice.trim(),
         }),
       });
-      showToast(`Marked "${payingPhase.phase_name}" as Paid (${formatCurrency(Number(payAmount) || payingPhase.amount)})`);
+      showToast(`Payment recorded! Invoice #${res.payment.invoice_number} generated.`);
       setPayingPhase(null);
-      fetchPayments();
+      await fetchPayments();
+      // Immediately open the generated invoice for user review and print/download
+      handleOpenInvoice(targetId);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to mark as paid', 'error');
     } finally {
@@ -796,7 +1260,15 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                               {phase.invoice_number && (
                                 <div className="flex items-center justify-between">
                                   <span className="text-slate-400">Invoice:</span>
-                                  <span className="font-mono">{phase.invoice_number}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenInvoice(phase.id)}
+                                    className="font-mono text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                                    title="View invoice"
+                                  >
+                                    <FileText className="w-3 h-3" />
+                                    {phase.invoice_number}
+                                  </button>
                                 </div>
                               )}
 
@@ -818,20 +1290,42 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                           </div>
 
                           {/* Phase Action Buttons */}
-                          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1">
+                          <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-1.5 flex-wrap">
                             {!isPaid ? (
-                              <button
-                                type="button"
-                                onClick={() => openPayModal(phase)}
-                                className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs"
-                              >
-                                <Check className="w-3.5 h-3.5" />
-                                Mark as Paid
-                              </button>
+                              <div className="flex items-center gap-1.5 flex-1">
+                                <button
+                                  type="button"
+                                  onClick={() => openPayModal(phase)}
+                                  className="flex-1 inline-flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white transition-colors shadow-xs cursor-pointer"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  Mark as Paid
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenInvoice(phase.id)}
+                                  className="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer"
+                                  title="View / Generate Tax Invoice"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  Invoice
+                                </button>
+                              </div>
                             ) : (
-                              <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Paid in full
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenInvoice(phase.id)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs transition-colors cursor-pointer"
+                                  title="View & Print Official Tax Invoice / Payment Receipt"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                  View Invoice
+                                </button>
+                                <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Paid
+                                </span>
+                              </div>
                             )}
 
                             <div className="flex items-center gap-0.5">
@@ -839,7 +1333,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                                 type="button"
                                 onClick={() => openEditModal(phase)}
                                 title="Edit Phase"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                               >
                                 <Edit3 className="w-3.5 h-3.5" />
                               </button>
@@ -847,7 +1341,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                                 type="button"
                                 onClick={() => setDeletingPayment(phase)}
                                 title="Delete Phase"
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800"
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -945,11 +1439,25 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
 
                       <td className="py-3.5 px-4 text-xs">
                         {p.invoice_number ? (
-                          <span className="font-mono text-slate-800 dark:text-slate-200">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenInvoice(p.id)}
+                            className="font-mono text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                            title="View & Print Invoice"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
                             {p.invoice_number}
-                          </span>
+                          </button>
                         ) : (
-                          <span className="text-slate-400">—</span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenInvoice(p.id)}
+                            className="text-[11px] text-slate-400 hover:text-indigo-600 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                            title="Generate Invoice"
+                          >
+                            <FileText className="w-3 h-3" />
+                            Generate
+                          </button>
                         )}
                         {p.transaction_ref && (
                           <div className="text-[10px] text-slate-500 font-mono">
@@ -960,11 +1468,20 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
 
                       <td className="py-3.5 px-4 text-right">
                         <div className="inline-flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenInvoice(p.id)}
+                            title="View / Print Tax Invoice"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg text-indigo-700 dark:text-indigo-300 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900 border border-indigo-200 dark:border-indigo-800 transition-colors cursor-pointer"
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            Invoice
+                          </button>
                           {!isPaid && (
                             <button
                               type="button"
                               onClick={() => openPayModal(p)}
-                              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white"
+                              className="px-2.5 py-1 text-xs font-bold rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
                             >
                               Receive
                             </button>
@@ -973,7 +1490,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                             type="button"
                             onClick={() => openEditModal(p)}
                             title="Edit Phase"
-                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+                            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 cursor-pointer"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
                           </button>
@@ -981,7 +1498,7 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
                             type="button"
                             onClick={() => setDeletingPayment(p)}
                             title="Delete Phase"
-                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600"
+                            className="p-1 rounded-lg text-slate-400 hover:text-rose-600 cursor-pointer"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -1525,6 +2042,254 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
         description={`Are you sure you want to delete "${deletingPayment?.phase_name}" (${formatCurrency(deletingPayment?.amount, deletingPayment?.currency)})? This will remove this phase from project billing.`}
         confirmLabel="Delete Phase"
       />
+
+      {/* Tax Invoice & Payment Receipt Modal */}
+      <Modal
+        open={Boolean(viewingInvoice)}
+        onClose={() => setViewingInvoice(null)}
+        title={viewingInvoice ? `Tax Invoice #${viewingInvoice.invoice_number}` : 'Invoice'}
+        subtitle={viewingInvoice ? `${viewingInvoice.client.company} • ${viewingInvoice.project.name}` : ''}
+        maxWidth="max-w-4xl"
+      >
+        {viewingInvoice && (
+          <div className="space-y-4">
+            {/* Action Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-2 p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700">
+              <div className="flex items-center gap-2">
+                <span
+                  className={`px-2.5 py-1 text-xs font-bold rounded-lg border ${
+                    viewingInvoice.status === 'Paid'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700'
+                      : viewingInvoice.status === 'Invoiced'
+                      ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300'
+                  }`}
+                >
+                  {viewingInvoice.status === 'Paid' ? '✓ PAID IN FULL' : viewingInvoice.status.toUpperCase()}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400">
+                  Total: <strong className="text-slate-900 dark:text-slate-100">{formatCurrency(viewingInvoice.total_amount, viewingInvoice.phase.currency)}</strong>
+                </span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleCopyInvoiceSummary}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-xs transition-colors"
+                >
+                  <Copy className="w-3.5 h-3.5" />
+                  Copy Text
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadInvoiceHtml}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer shadow-xs transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  Download HTML
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintInvoice}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs cursor-pointer transition-colors"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  Print / Save PDF
+                </button>
+              </div>
+            </div>
+
+            {/* Invoice Sheet Preview */}
+            <div className="bg-white text-slate-900 p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 border-b-2 border-indigo-900 pb-6">
+                <div>
+                  <h3 className="text-2xl font-extrabold text-indigo-950 tracking-tight">
+                    {viewingInvoice.company.name}
+                  </h3>
+                  <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold mt-0.5">
+                    {viewingInvoice.company.tagline}
+                  </p>
+                  <div className="text-xs text-slate-600 mt-2 space-y-0.5">
+                    <div>{viewingInvoice.company.address}</div>
+                    <div>
+                      GSTIN: <strong>{viewingInvoice.company.gstin}</strong> &bull; PAN: <strong>{viewingInvoice.company.pan}</strong>
+                    </div>
+                    <div>
+                      Email: {viewingInvoice.company.email} &bull; Web: {viewingInvoice.company.website}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-left sm:text-right space-y-1">
+                  <div className="text-lg font-black uppercase text-indigo-950 tracking-wider">
+                    Tax Invoice
+                  </div>
+                  <div className="font-mono text-sm font-bold text-teal-600">
+                    {viewingInvoice.invoice_number}
+                  </div>
+                  <div className="text-xs text-slate-500 pt-1">
+                    <div>Invoice Date: <strong>{formatDate(viewingInvoice.issue_date)}</strong></div>
+                    <div>Due Date: <strong>{formatDate(viewingInvoice.due_date)}</strong></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bill To & Project Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-1">
+                    Billed To (Client)
+                  </div>
+                  <div className="text-sm font-bold text-slate-900 pt-1">
+                    {viewingInvoice.client.company}
+                  </div>
+                  {viewingInvoice.client.contact_name && (
+                    <div className="text-xs font-semibold text-slate-700">
+                      Attn: {viewingInvoice.client.contact_name}
+                    </div>
+                  )}
+                  {viewingInvoice.client.address && (
+                    <div className="text-xs text-slate-600">{viewingInvoice.client.address}</div>
+                  )}
+                  <div className="text-xs text-slate-500 pt-1">
+                    {viewingInvoice.client.email} {viewingInvoice.client.phone && `• ${viewingInvoice.client.phone}`}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-200 pb-1">
+                    Project Engagement Details
+                  </div>
+                  <div className="text-sm font-bold text-slate-900 pt-1">
+                    {viewingInvoice.project.name}
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    Service: <strong>{viewingInvoice.project.service_type || 'Custom Software & AI'}</strong>
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    Milestone: <strong>Phase {viewingInvoice.phase.phase_number} ({viewingInvoice.phase.percentage}%)</strong>
+                  </div>
+                  <div className="text-xs text-slate-600">
+                    Project Budget: <strong>{formatCurrency(viewingInvoice.project.budget || viewingInvoice.subtotal, viewingInvoice.phase.currency)}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Milestone Breakdown Table */}
+              <div className="overflow-x-auto border border-slate-200 rounded-xl">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-indigo-950 text-white font-bold uppercase tracking-wider text-[10px]">
+                    <tr>
+                      <th className="py-2.5 px-4">Milestone Scope &amp; Deliverables</th>
+                      <th className="py-2.5 px-4 text-right">Share (%)</th>
+                      <th className="py-2.5 px-4 text-right">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    <tr>
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-900 text-sm">
+                          {viewingInvoice.phase.phase_name}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">
+                          {viewingInvoice.notes || 'Milestone sign-off & deliverables completed as per project agreement.'}
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-semibold">
+                        {viewingInvoice.phase.percentage}%
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-bold text-slate-900 text-sm">
+                        {formatCurrency(viewingInvoice.subtotal, viewingInvoice.phase.currency)}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totals Summary */}
+              <div className="flex justify-end">
+                <div className="w-full sm:w-80 space-y-1.5 text-xs">
+                  <div className="flex justify-between py-1 text-slate-600">
+                    <span>Milestone Subtotal:</span>
+                    <span className="font-bold text-slate-900">{formatCurrency(viewingInvoice.subtotal, viewingInvoice.phase.currency)}</span>
+                  </div>
+                  {viewingInvoice.tax_rate > 0 && (
+                    <>
+                      <div className="flex justify-between py-1 text-slate-600">
+                        <span>CGST ({viewingInvoice.cgst_rate || 9}%):</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(viewingInvoice.cgst_amount || Math.round(viewingInvoice.tax_amount / 2), viewingInvoice.phase.currency)}</span>
+                      </div>
+                      <div className="flex justify-between py-1 text-slate-600">
+                        <span>SGST ({viewingInvoice.sgst_rate || 9}%):</span>
+                        <span className="font-semibold text-slate-800">{formatCurrency(viewingInvoice.sgst_amount || Math.round(viewingInvoice.tax_amount / 2), viewingInvoice.phase.currency)}</span>
+                      </div>
+                    </>
+                  )}
+                  <div className="flex justify-between py-2 border-t-2 border-b-2 border-indigo-950 font-black text-sm text-indigo-950">
+                    <span>Total Invoice Amount:</span>
+                    <span>{formatCurrency(viewingInvoice.total_amount, viewingInvoice.phase.currency)}</span>
+                  </div>
+                  {viewingInvoice.status === 'Paid' && (
+                    <div className="flex justify-between py-1 text-emerald-700 font-bold">
+                      <span>Amount Received in Full:</span>
+                      <span>{formatCurrency(viewingInvoice.paid_amount, viewingInvoice.phase.currency)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Official Receipt Confirmation or Bank Details */}
+              {viewingInvoice.status === 'Paid' ? (
+                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-300 space-y-2">
+                  <div className="flex items-center gap-2 text-emerald-800 font-extrabold text-xs uppercase tracking-wider">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Payment Settlement Receipt Confirmation
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
+                    <div>
+                      <span className="text-slate-500 block">Date Paid</span>
+                      <strong className="text-emerald-950">{formatDate(viewingInvoice.paid_date)}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">Payment Method</span>
+                      <strong className="text-emerald-950">{viewingInvoice.payment_method}</strong>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block">UTR / Ref #</span>
+                      <strong className="font-mono text-emerald-950">{viewingInvoice.transaction_ref || 'N/A'}</strong>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1">
+                  <div className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">
+                    Remittance Bank Details
+                  </div>
+                  <div>Account: <strong>{viewingInvoice.company.bank_details?.account_name}</strong></div>
+                  <div>Bank: <strong>{viewingInvoice.company.bank_details?.bank_name}</strong> &bull; A/C: <strong>{viewingInvoice.company.bank_details?.account_number}</strong> &bull; IFSC: <strong>{viewingInvoice.company.bank_details?.ifsc}</strong></div>
+                  {viewingInvoice.company.bank_details?.upi_id && (
+                    <div>UPI ID: <strong>{viewingInvoice.company.bank_details.upi_id}</strong></div>
+                  )}
+                </div>
+              )}
+
+              {/* Signatory & Disclaimer */}
+              <div className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row sm:items-end justify-between gap-4 text-xs text-slate-500">
+                <div>
+                  This is a computer-generated tax invoice issued by {viewingInvoice.company.name}.
+                </div>
+                <div className="text-left sm:text-right">
+                  <div className="w-44 border-b border-dashed border-slate-400 mb-1"></div>
+                  <strong className="text-slate-800">Authorized Signatory</strong>
+                  <div>NexInt AI Technologies Pvt. Ltd.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

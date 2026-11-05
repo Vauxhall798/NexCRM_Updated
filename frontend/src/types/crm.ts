@@ -528,6 +528,70 @@ export interface PaymentsSummary {
   pending_phases: number;
 }
 
+export interface PaymentInvoice {
+  invoice_number: string;
+  issue_date: string;
+  due_date: string;
+  paid_date: string | null;
+  status: PaymentStatus;
+  client: {
+    id?: string;
+    company: string;
+    contact_name?: string;
+    email?: string;
+    phone?: string;
+    address?: string;
+    industry?: string;
+  };
+  project: {
+    id?: string;
+    name: string;
+    service_type?: string;
+    budget?: number;
+    currency?: string;
+  };
+  phase: {
+    id?: string;
+    phase_name: string;
+    phase_number: number;
+    percentage: number;
+    amount: number;
+    currency: string;
+  };
+  subtotal: number;
+  tax_rate: number;
+  cgst_rate?: number;
+  cgst_amount?: number;
+  sgst_rate?: number;
+  sgst_amount?: number;
+  tax_amount: number;
+  total_amount: number;
+  paid_amount: number;
+  balance_due: number;
+  payment_method: string;
+  transaction_ref?: string;
+  notes?: string;
+  company: {
+    name: string;
+    tagline?: string;
+    address: string;
+    gstin?: string;
+    pan?: string;
+    cin?: string;
+    email: string;
+    phone: string;
+    website: string;
+    bank_details?: {
+      bank_name: string;
+      account_name: string;
+      account_number: string;
+      ifsc: string;
+      branch: string;
+      upi_id?: string;
+    };
+  };
+}
+
 export type NavTab =
   | 'dashboard'
   | 'leads'

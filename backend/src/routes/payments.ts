@@ -25,6 +25,12 @@ export const PAYMENT_METHODS = [
   'Other',
 ] as const;
 
+export function generateInvoiceNumber(phaseNumber: number = 1): string {
+  const year = new Date().getFullYear();
+  const randomNum = Math.floor(1000 + Math.random() * 9000);
+  return `INV-${year}-${String(phaseNumber).padStart(2, '0')}-${randomNum}`;
+}
+
 const paymentInputSchema = z.object({
   client_id: z.string().min(1, 'Client is required'),
   project_id: z.string().min(1, 'Project is required'),
@@ -221,6 +227,11 @@ paymentsRouter.post('/', async (req: AuthRequest, res: Response) => {
       if (!paid_amount || paid_amount === 0) paid_amount = data.amount;
     }
 
+    let invoice_number = data.invoice_number?.trim() || '';
+    if (!invoice_number && (data.status === 'Paid' || data.status === 'Invoiced')) {
+      invoice_number = generateInvoiceNumber(data.phase_number || 1);
+    }
+
     const created = await prisma.clientPayment.create({
       data: {
         client_id: data.client_id,
@@ -234,7 +245,7 @@ paymentsRouter.post('/', async (req: AuthRequest, res: Response) => {
         due_date: new Date(data.due_date).toISOString(),
         paid_date,
         paid_amount,
-        invoice_number: data.invoice_number?.trim() || '',
+        invoice_number,
         payment_method: data.payment_method || 'Bank Transfer / NEFT',
         transaction_ref: data.transaction_ref?.trim() || '',
         notes: data.notes?.trim() || '',
@@ -251,6 +262,118 @@ paymentsRouter.post('/', async (req: AuthRequest, res: Response) => {
   } catch (err) {
     console.error('Error creating payment phase:', err);
     res.status(500).json({ error: 'Failed to create payment phase' });
+  }
+});
+
+// Get / Generate Full Tax Invoice & Payment Receipt for a payment phase
+paymentsRouter.get('/:id/invoice', async (req: AuthRequest, res: Response) => {
+  try {
+    const id = String(req.params.id);
+    let payment = await prisma.clientPayment.findUnique({
+      where: { id },
+      include: {
+        client: true,
+        project: true,
+        author: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (!payment) {
+      res.status(404).json({ error: 'Payment phase not found' });
+      return;
+    }
+
+    // Auto-generate invoice number if missing
+    let invoiceNumber = payment.invoice_number?.trim();
+    if (!invoiceNumber) {
+      invoiceNumber = generateInvoiceNumber(payment.phase_number || 1);
+      payment = await prisma.clientPayment.update({
+        where: { id },
+        data: { invoice_number: invoiceNumber },
+        include: {
+          client: true,
+          project: true,
+          author: { select: { id: true, name: true, email: true } },
+        },
+      });
+    }
+
+    const subtotal = Number(payment.amount || 0);
+    const isDomesticInr = (payment.currency || 'INR') === 'INR';
+    const taxRate = isDomesticInr ? 18 : 0;
+    const taxAmount = Math.round((subtotal * taxRate) / 100);
+    const totalAmount = subtotal + taxAmount;
+    const paidAmount = Number(payment.paid_amount || 0);
+    const balanceDue = payment.status === 'Paid' ? 0 : Math.max(0, totalAmount - paidAmount);
+
+    const invoicePayload = {
+      invoice_number: invoiceNumber,
+      issue_date: payment.paid_date || payment.created_at || new Date().toISOString(),
+      due_date: payment.due_date,
+      paid_date: payment.paid_date,
+      status: payment.status,
+      client: {
+        id: payment.client?.id,
+        company: payment.client?.company || 'Client Organization',
+        contact_name: payment.client?.contact_name || '',
+        email: payment.client?.email || '',
+        phone: payment.client?.phone || '',
+        address: payment.client?.address || 'Corporate Office',
+        industry: payment.client?.industry || '',
+      },
+      project: {
+        id: payment.project?.id,
+        name: payment.project?.name || 'Client Project',
+        service_type: payment.project?.service_type || 'Custom Software & AI Solutions',
+        budget: payment.project?.budget,
+        currency: payment.currency || 'INR',
+      },
+      phase: {
+        id: payment.id,
+        phase_name: payment.phase_name,
+        phase_number: payment.phase_number,
+        percentage: payment.percentage,
+        amount: subtotal,
+        currency: payment.currency || 'INR',
+      },
+      subtotal,
+      tax_rate: taxRate,
+      cgst_rate: isDomesticInr ? 9 : 0,
+      cgst_amount: isDomesticInr ? Math.round(taxAmount / 2) : 0,
+      sgst_rate: isDomesticInr ? 9 : 0,
+      sgst_amount: isDomesticInr ? Math.round(taxAmount / 2) : 0,
+      tax_amount: taxAmount,
+      total_amount: totalAmount,
+      paid_amount: paidAmount,
+      balance_due: balanceDue,
+      payment_method: payment.payment_method || 'Bank Transfer / NEFT',
+      transaction_ref: payment.transaction_ref || '',
+      notes: payment.notes || '',
+      company: {
+        name: 'NexInt AI Technologies Pvt. Ltd.',
+        tagline: 'Enterprise AI & Cloud Infrastructure Solutions',
+        address: 'NexInt Tech Park, Level 4, Phase II, OMR IT Corridor, Chennai, TN - 600096, India',
+        gstin: '33AABCN8291M1ZP',
+        pan: 'AABCN8291M',
+        cin: 'U72900TN2024PTC189201',
+        email: 'billing@nexint.ai',
+        phone: '+91 (044) 4801-9200',
+        website: 'https://nexcrm.io',
+        bank_details: {
+          bank_name: 'HDFC Bank Ltd',
+          account_name: 'NexInt AI Technologies Private Limited',
+          account_number: '50200084729103',
+          ifsc: 'HDFC0001234',
+          branch: 'OMR Cyber City, Chennai',
+          upi_id: 'nexint.ai@okhdfcbank',
+        },
+      },
+    };
+
+    res.json({ invoice: invoicePayload });
+  } catch (err) {
+    console.error('Error fetching/generating invoice:', err);
+    res.status(500).json({ error: 'Failed to generate invoice' });
   }
 });
 
@@ -291,9 +414,16 @@ paymentsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       if (data.status === 'Paid') {
         updateData.paid_date = data.paid_date ? new Date(data.paid_date).toISOString() : new Date().toISOString();
         updateData.paid_amount = data.paid_amount !== undefined ? data.paid_amount : (data.amount ?? existing.amount);
+        // Automatically generate invoice number if missing when marked as Paid
+        if (!updateData.invoice_number && !existing.invoice_number) {
+          updateData.invoice_number = generateInvoiceNumber(existing.phase_number || 1);
+        }
       } else if (data.status === 'Pending' || data.status === 'Invoiced') {
         if (data.paid_date === null) updateData.paid_date = null;
         if (data.paid_amount !== undefined) updateData.paid_amount = data.paid_amount;
+        if (data.status === 'Invoiced' && !updateData.invoice_number && !existing.invoice_number) {
+          updateData.invoice_number = generateInvoiceNumber(existing.phase_number || 1);
+        }
       }
     } else {
       if (data.paid_date !== undefined) {

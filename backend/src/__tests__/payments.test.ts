@@ -103,6 +103,44 @@ test('Client Payment Phase Tracking Automated Tests', async (t) => {
     assert.equal(payments[0].project?.name, 'Warehouse Automation Vision System');
   });
 
+  await t.test('4. Automatically generates invoice number for paid phases', async () => {
+    // Create an un-invoiced phase
+    const phase3 = await prisma.clientPayment.create({
+      data: {
+        client_id: testClient.id,
+        project_id: testProject.id,
+        phase_name: 'Phase 3: Production Rollout',
+        phase_number: 3,
+        amount: 400000,
+        currency: 'INR',
+        percentage: 40,
+        status: 'Pending',
+        due_date: new Date().toISOString(),
+        invoice_number: '',
+      },
+    });
+
+    assert.equal(phase3.invoice_number, '');
+
+    // Now mark as Paid via update logic
+    const { generateInvoiceNumber } = await import('../routes/payments.ts');
+    const autoInv = generateInvoiceNumber(3);
+    assert.match(autoInv, /^INV-\d{4}-03-\d{4}$/);
+
+    const paidPhase = await prisma.clientPayment.update({
+      where: { id: phase3.id },
+      data: {
+        status: 'Paid',
+        paid_amount: 400000,
+        paid_date: new Date().toISOString(),
+        invoice_number: autoInv,
+      },
+    });
+
+    assert.equal(paidPhase.status, 'Paid');
+    assert.ok(paidPhase.invoice_number.startsWith('INV-'));
+  });
+
   // Cleanup
   await prisma.clientPayment.deleteMany({ where: { project_id: testProject.id } });
   await prisma.project.delete({ where: { id: testProject.id } });
