@@ -37,7 +37,7 @@ export interface LeadNote {
   text: string;
   created_by: string | null;
   created_at: string;
-  author?: { id: string; name: string; email?: string } | null;
+  author?: { id: string; name: string; email?: string; role?: string } | null;
 }
 
 export interface Lead {

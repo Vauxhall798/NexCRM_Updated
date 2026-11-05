@@ -170,6 +170,8 @@ const leadInputSchema = z.object({
 
 const noteSchema = z.object({
   text: z.string().min(1, 'Note text cannot be empty'),
+  next_followup: z.string().nullable().optional(),
+  status: z.enum(LEAD_STATUSES).optional(),
 });
 
 leadsRouter.get('/', async (req: AuthRequest, res: Response) => {
@@ -228,7 +230,7 @@ leadsRouter.get('/', async (req: AuthRequest, res: Response) => {
         conversion: true,
         client: { select: { id: true, company: true, status: true } },
         lead_notes: {
-          include: { author: { select: { id: true, name: true } } },
+          include: { author: { select: { id: true, name: true, email: true, role: true } } },
           orderBy: { created_at: 'desc' },
         },
       },
@@ -251,7 +253,7 @@ leadsRouter.get('/:id', async (req: AuthRequest, res: Response) => {
       conversion: true,
       client: true,
       lead_notes: {
-        include: { author: { select: { id: true, name: true, email: true } } },
+        include: { author: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { created_at: 'desc' },
       },
     },
@@ -312,7 +314,7 @@ leadsRouter.post('/', async (req: AuthRequest, res: Response) => {
       conversion: true,
       client: true,
       lead_notes: {
-        include: { author: { select: { id: true, name: true } } },
+        include: { author: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { created_at: 'desc' },
       },
     },
@@ -361,15 +363,52 @@ leadsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
     },
   });
 
+  let authorId: string | null = req.user?.id || null;
+  if (authorId) {
+    const userExists = await prisma.user.findUnique({ where: { id: authorId } });
+    if (!userExists) authorId = null;
+  }
+
   if (statusChanged) {
     await prisma.leadNote.create({
       data: {
         lead_id: updated.id,
         text: `Status updated from "${existing.status}" to "${data.status}"`,
-        created_by: req.user?.id || null,
+        created_by: authorId,
       },
     });
     await syncLeadConversionAndClient(updated, req.user);
+  }
+
+  const workNote = typeof req.body.work_note === 'string' ? req.body.work_note.trim() : '';
+  if (workNote) {
+    await prisma.leadNote.create({
+      data: {
+        lead_id: updated.id,
+        text: workNote,
+        created_by: authorId,
+      },
+    });
+  } else if (
+    data.next_followup !== undefined &&
+    ((data.next_followup === null && existing.next_followup !== null) ||
+      (data.next_followup !== null &&
+        existing.next_followup?.toISOString() !== new Date(data.next_followup).toISOString()))
+  ) {
+    const followupText = data.next_followup
+      ? `Follow-up scheduled for ${new Date(data.next_followup).toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })}`
+      : 'Follow-up date cleared';
+    await prisma.leadNote.create({
+      data: {
+        lead_id: updated.id,
+        text: followupText,
+        created_by: authorId,
+      },
+    });
   }
 
   const fullLead = await prisma.lead.findUnique({
@@ -379,7 +418,7 @@ leadsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       conversion: true,
       client: true,
       lead_notes: {
-        include: { author: { select: { id: true, name: true } } },
+        include: { author: { select: { id: true, name: true, email: true, role: true } } },
         orderBy: { created_at: 'desc' },
       },
     },
@@ -414,18 +453,58 @@ leadsRouter.post('/:id/notes', async (req: AuthRequest, res: Response) => {
     return;
   }
 
+  const { text, next_followup, status } = parsed.data;
+
+  // If next_followup or status is provided, update the lead
+  const updateData: any = {};
+  if (next_followup !== undefined) {
+    updateData.next_followup = next_followup ? new Date(next_followup) : null;
+  }
+  if (status && status !== lead.status) {
+    updateData.status = status;
+  }
+
+  if (Object.keys(updateData).length > 0) {
+    const updatedLead = await prisma.lead.update({
+      where: { id: lead.id },
+      data: updateData,
+    });
+    if (updateData.status) {
+      await syncLeadConversionAndClient(updatedLead, req.user);
+    }
+  }
+
+  let authorId: string | null = req.user?.id || null;
+  if (authorId) {
+    const userExists = await prisma.user.findUnique({ where: { id: authorId } });
+    if (!userExists) authorId = null;
+  }
+
   const note = await prisma.leadNote.create({
     data: {
       lead_id: lead.id,
-      text: parsed.data.text.trim(),
-      created_by: req.user?.id || null,
+      text: text.trim(),
+      created_by: authorId,
     },
     include: {
-      author: { select: { id: true, name: true, email: true } },
+      author: { select: { id: true, name: true, email: true, role: true } },
     },
   });
 
-  res.status(201).json({ note });
+  const refreshedLead = await prisma.lead.findUnique({
+    where: { id: lead.id },
+    include: {
+      owner: { select: { id: true, name: true, email: true, role: true } },
+      conversion: true,
+      client: true,
+      lead_notes: {
+        include: { author: { select: { id: true, name: true, email: true, role: true } } },
+        orderBy: { created_at: 'desc' },
+      },
+    },
+  });
+
+  res.status(201).json({ note, lead: refreshedLead });
 });
 
 leadsRouter.delete('/:id/notes/:noteId', async (req: AuthRequest, res: Response) => {

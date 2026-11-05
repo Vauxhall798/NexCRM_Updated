@@ -590,6 +590,7 @@ export const App: React.FC = () => {
             {activeTab === 'leads' && (
               <LeadsPage
                 users={users}
+                currentUser={user}
                 initialLeadId={contextId}
                 onClearInitialId={() => setContextId(null)}
                 onNavigate={handleNavigate}
