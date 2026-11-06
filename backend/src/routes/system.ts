@@ -25,6 +25,7 @@ const ALL_TABLES = [
   'ResourceAssignment',
   'Proposal',
   'ClientPayment',
+  'EmailLog',
 ] as const;
 
 // Get Database Storage Health & Status
@@ -171,3 +172,4 @@ systemRouter.post('/database/restore', async (req: AuthRequest, res: Response) =
     res.status(500).json({ error: err instanceof Error ? err.message : 'Failed to restore database' });
   }
 });
+

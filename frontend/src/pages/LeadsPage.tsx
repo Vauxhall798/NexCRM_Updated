@@ -17,6 +17,7 @@ import {
   CheckCircle2,
   Rocket,
   UserCheck,
+  Sparkles,
 } from 'lucide-react';
 import { apiFetch } from '../lib/api';
 import { Lead, LeadNote, LeadSource, LeadStatus, NavTab, ServiceType, User, Resource } from '../types/crm';
@@ -38,6 +39,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Pagination } from '../components/ui/Pagination';
 import { EmptyState } from '../components/ui/EmptyState';
 import { useToast } from '../components/ui/Toast';
+import { FollowUpEmailModal } from '../components/FollowUpEmailModal';
 
 interface LeadsPageProps {
   users: User[];
@@ -132,6 +134,10 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
   const [workNoteResource, setWorkNoteResource] = useState('');
   const [workNoteStatus, setWorkNoteStatus] = useState<LeadStatus>('New');
   const [submittingWorkNote, setSubmittingWorkNote] = useState(false);
+
+  // Email Follow-up Modal & Automation
+  const [emailModalLead, setEmailModalLead] = useState<Lead | null>(null);
+  const [runningBatch, setRunningBatch] = useState(false);
 
   // Available internal resources for follow-up assignment suggestions
   const [internalResources, setInternalResources] = useState<Resource[]>([]);
@@ -429,6 +435,42 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
     }
   };
 
+  const dueFollowupsCount = useMemo(() => {
+    return leads.filter(
+      (l) => isFollowupOverdue(l.next_followup) && l.status !== 'Converted' && l.status !== 'Not converted'
+    ).length;
+  }, [leads]);
+
+  const handleRunAutomatedBatch = async () => {
+    if (runningBatch) return;
+    if (dueFollowupsCount === 0) {
+      showToast('No leads are currently overdue for follow-up.', 'info');
+      return;
+    }
+    const confirmed = window.confirm(
+      `Run automated follow-up dispatch for ${dueFollowupsCount} overdue lead(s)?\n\n` +
+      `• Generates tailored email drafts for each overdue lead\n` +
+      `• Dispatches via active email transport (or CRM Simulated Mode)\n` +
+      `• Automatically logs an audit work note authored by ${currentUser?.name || 'CRM System'}\n` +
+      `• Schedules the next follow-up (+4 days)`
+    );
+    if (!confirmed) return;
+
+    setRunningBatch(true);
+    try {
+      const res = await apiFetch<{ dispatched: number; summary: string }>('/automation/run-batch', {
+        method: 'POST',
+        body: JSON.stringify({ sent_by_user_id: currentUser?.id }),
+      });
+      showToast(res.summary || `Automated follow-up batch complete: ${res.dispatched} processed.`);
+      fetchLeads();
+    } catch (err: any) {
+      showToast(err?.message || 'Failed to run automated follow-up batch', 'error');
+    } finally {
+      setRunningBatch(false);
+    }
+  };
+
   const handleExportCsv = () => {
     const rows = filteredLeads.map((l) => ({
       Name: l.name,
@@ -457,6 +499,25 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
           <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Leads Pipeline</h2>
         </div>
         <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={handleRunAutomatedBatch}
+            disabled={runningBatch || dueFollowupsCount === 0}
+            title={dueFollowupsCount > 0 ? `Automate follow-ups for ${dueFollowupsCount} overdue leads` : 'No overdue follow-ups'}
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border transition-all ${
+              dueFollowupsCount > 0
+                ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900 shadow-xs cursor-pointer'
+                : 'border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-400 dark:text-slate-500 cursor-not-allowed opacity-60'
+            }`}
+          >
+            <Sparkles className={`w-3.5 h-3.5 ${dueFollowupsCount > 0 ? 'text-indigo-600 dark:text-indigo-400 animate-pulse' : ''}`} />
+            <span>{runningBatch ? 'Automating...' : 'Automate Due Follow-ups'}</span>
+            {dueFollowupsCount > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.2 text-[10px] font-bold rounded-full bg-rose-500 text-white">
+                {dueFollowupsCount}
+              </span>
+            )}
+          </button>
           <button
             type="button"
             onClick={handleExportCsv}
@@ -757,6 +818,16 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
                                 Onboard
                               </button>
                             )}
+
+                            <button
+                              type="button"
+                              onClick={() => setEmailModalLead(lead)}
+                              title="Draft & Send Follow-up Email"
+                              className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800 transition-colors"
+                            >
+                              <Mail className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Email</span>
+                            </button>
 
                             <button
                               type="button"
@@ -1202,8 +1273,18 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
                   <MessageSquarePlus className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
                   Follow-up &amp; Work Notes ({selectedLead.lead_notes?.length || 0})
                 </h4>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Logged by: <span className="font-bold text-indigo-600 dark:text-indigo-400">{currentUser?.name || 'login 1'}</span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEmailModalLead(selectedLead)}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900 border border-emerald-200/80 dark:border-emerald-800 transition-colors cursor-pointer"
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>Send Follow-up Email</span>
+                  </button>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Logged by: <span className="font-bold text-indigo-600 dark:text-indigo-400">{currentUser?.name || 'login 1'}</span>
+                  </div>
                 </div>
               </div>
 
@@ -1465,6 +1546,23 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
         title="Delete Lead"
         description={`Are you sure you want to permanently delete "${deletingLead?.name}" (${deletingLead?.company}) and its activity log? This action cannot be undone.`}
         confirmLabel="Delete Lead"
+      />
+
+      {/* Follow-up Email Composer & Automation Modal */}
+      <FollowUpEmailModal
+        open={Boolean(emailModalLead)}
+        lead={emailModalLead}
+        onClose={() => setEmailModalLead(null)}
+        onSent={() => {
+          fetchLeads();
+          if (selectedLead && emailModalLead && selectedLead.id === emailModalLead.id) {
+            apiFetch<{ lead: Lead }>(`/leads/${selectedLead.id}`)
+              .then((res) => {
+                if (res?.lead) setSelectedLead(res.lead);
+              })
+              .catch(() => {});
+          }
+        }}
       />
 
       <datalist id="lead-resource-datalist">

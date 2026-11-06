@@ -606,4 +606,37 @@ export type NavTab =
   | 'feedback'
   | 'bau';
 
+export type FollowupTemplateType =
+  | 'proposal_checkin'
+  | 'initial_inquiry'
+  | 'meeting_reminder'
+  | 'gentle_nudge'
+  | 'reengagement'
+  | 'negotiation_close';
+
+export interface EmailLog {
+  id: string;
+  lead_id: string | null;
+  client_id: string | null;
+  recipient_email: string;
+  recipient_name: string;
+  subject: string;
+  body: string;
+  status: 'Sent' | 'Simulated' | 'Failed';
+  provider: string;
+  error_message?: string;
+  sent_by: string | null;
+  sent_at: string;
+}
+
+export interface FollowupDraft {
+  subject: string;
+  body: string;
+  recipient_email: string;
+  recipient_name: string;
+  company: string;
+  lead_status: string;
+  suggested_next_followup: string;
+}
+
 

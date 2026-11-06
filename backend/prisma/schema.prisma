@@ -23,6 +23,7 @@ model User {
   recorded_feedback Feedback[]      @relation("FeedbackRecorder")
   assigned_tickets  BauTicket[]     @relation("BauTicketAssignee")
   recorded_payments ClientPayment[] @relation("ClientPaymentAuthor")
+  sent_emails       EmailLog[]      @relation("EmailLogSender")
 }
 
 model Lead {
@@ -46,6 +47,7 @@ model Lead {
   lead_notes    LeadNote[]
   conversion    Conversion?
   client        Client?
+  email_logs    EmailLog[]
 }
 
 model LeadNote {
@@ -275,6 +277,24 @@ model ClientPayment {
   client          Client    @relation(fields: [client_id], references: [id], onDelete: Cascade)
   project         Project   @relation(fields: [project_id], references: [id], onDelete: Cascade)
   author          User?     @relation("ClientPaymentAuthor", fields: [created_by], references: [id], onDelete: SetNull)
+}
+
+model EmailLog {
+  id              String   @id @default(uuid())
+  lead_id         String?
+  client_id       String?
+  recipient_email String
+  recipient_name  String
+  subject         String
+  body            String
+  status          String   @default("Sent") // Sent | Simulated | Failed
+  provider        String   @default("CRM Mailer")
+  error_message   String   @default("")
+  sent_by         String?
+  sent_at         DateTime @default(now())
+
+  lead            Lead?    @relation(fields: [lead_id], references: [id], onDelete: SetNull)
+  sender          User?    @relation("EmailLogSender", fields: [sent_by], references: [id], onDelete: SetNull)
 }
 
 

@@ -275,6 +275,23 @@ db.exec(`
     FOREIGN KEY ("created_by") REFERENCES "User"("id") ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS "EmailLog" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "lead_id" TEXT,
+    "client_id" TEXT,
+    "recipient_email" TEXT NOT NULL,
+    "recipient_name" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "body" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'Sent',
+    "provider" TEXT NOT NULL DEFAULT 'CRM Mailer',
+    "error_message" TEXT NOT NULL DEFAULT '',
+    "sent_by" TEXT,
+    "sent_at" TEXT NOT NULL,
+    FOREIGN KEY ("lead_id") REFERENCES "Lead"("id") ON DELETE SET NULL,
+    FOREIGN KEY ("sent_by") REFERENCES "User"("id") ON DELETE SET NULL
+  );
+
   -- Migrate any legacy non-INR records to INR for Indian IT company standardization
   UPDATE "ProjectCost"
   SET "amount" = "amount" * 10
@@ -1075,6 +1092,15 @@ export const prisma = {
     notes: '',
     created_by: null,
     created_at: toIso(new Date()),
+  })),
+  emailLog: createModelDelegate('EmailLog', () => ({
+    lead_id: null,
+    client_id: null,
+    status: 'Sent',
+    provider: 'CRM Mailer',
+    error_message: '',
+    sent_by: null,
+    sent_at: toIso(new Date()),
   })),
   async $transaction(promises: Promise<any>[]): Promise<any[]> {
     return Promise.all(promises);
