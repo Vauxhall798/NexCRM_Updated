@@ -24,6 +24,7 @@ import {
   Database,
   Mail,
   Receipt,
+  BarChart3,
 } from 'lucide-react';
 import { apiFetch, getToken, setToken } from './lib/api';
 import { NavTab, User } from './types/crm';
@@ -31,6 +32,7 @@ import { ToastProvider } from './components/ui/Toast';
 import { NexBrandLockup } from './components/ui/NexLogo';
 import { LoginPage } from './pages/LoginPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { ReportsPage } from './pages/ReportsPage';
 import { LeadsPage } from './pages/LeadsPage';
 import { LeadConversionPage } from './pages/LeadConversionPage';
 import { ProposalsPage } from './pages/ProposalsPage';
@@ -59,6 +61,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Dashboard',
     group: 'Overview & Pipeline',
     icon: LayoutDashboard,
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    group: 'Overview & Pipeline',
+    icon: BarChart3,
   },
   {
     id: 'leads',
@@ -624,6 +632,7 @@ export const App: React.FC = () => {
           {/* Active Module View */}
           <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
             {activeTab === 'dashboard' && <DashboardPage onNavigate={handleNavigate} />}
+            {activeTab === 'reports' && <ReportsPage onNavigate={handleNavigate} />}
             {activeTab === 'leads' && (
               <LeadsPage
                 users={users}

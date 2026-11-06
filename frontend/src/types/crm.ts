@@ -622,7 +622,8 @@ export type NavTab =
   | 'resources'
   | 'feedback'
   | 'bau'
-  | 'auto_email';
+  | 'auto_email'
+  | 'reports';
 
 export type ExpenseCategory =
   | 'Cloud & Hosting'
@@ -729,5 +730,112 @@ export interface FollowupDraft {
   lead_status: string;
   suggested_next_followup: string;
 }
+
+export interface ResourcePerformanceItem {
+  resource_name: string;
+  role: string;
+  assigned_leads: number;
+  converted_leads: number;
+  lost_leads: number;
+  in_progress_leads: number;
+  conversion_rate_pct: number;
+  total_deal_value_won: number;
+  avg_deal_size: number;
+}
+
+export interface ExpenseCategoryReportItem {
+  category: string;
+  total_amount: number;
+  paid_amount: number;
+  pending_amount: number;
+  count: number;
+  share_pct: number;
+}
+
+export interface LeadSourceReportItem {
+  source: string;
+  total_leads: number;
+  converted_count: number;
+  conversion_rate_pct: number;
+  total_value_won: number;
+}
+
+export interface ServiceTypeReportItem {
+  service_type: string;
+  total_leads: number;
+  converted_count: number;
+  conversion_rate_pct: number;
+  total_value_won: number;
+}
+
+export interface LostReasonReportItem {
+  reason: string;
+  count: number;
+  pct: number;
+}
+
+export interface MonthlyTrendReportItem {
+  month_key: string;
+  label: string;
+  income: number;
+  expenses: number;
+  net_profit: number;
+  leads_converted: number;
+}
+
+export interface ExecutiveReportData {
+  period: string;
+  financials: {
+    total_income_received: number;
+    total_receivables_pending: number;
+    total_expenses_made: number;
+    total_expenses_pending: number;
+    net_profit: number;
+    net_margin_pct: number;
+    overhead_expenses: number;
+    project_linked_expenses: number;
+    total_contract_value: number;
+  };
+  conversions: {
+    total_leads_count: number;
+    converted_leads_count: number;
+    conversion_rate_pct: number;
+    lost_leads_count: number;
+    in_pipeline_count: number;
+    total_deal_value_converted: number;
+  };
+  resources_leaderboard: ResourcePerformanceItem[];
+  expense_categories: ExpenseCategoryReportItem[];
+  lead_sources: LeadSourceReportItem[];
+  service_types: ServiceTypeReportItem[];
+  lost_reasons: LostReasonReportItem[];
+  projects_and_amc: {
+    total_projects: number;
+    active_projects: number;
+    completed_projects: number;
+    on_hold_projects: number;
+    total_contract_value: number;
+    amc_active_count: number;
+    amc_annual_recurring_revenue: number;
+    amc_expiring_soon_count: number;
+    amc_tiers: Array<{ tier: string; active_contracts: number; annual_revenue: number }>;
+  };
+  csat_and_quality: {
+    avg_csat_rating: number;
+    feedback_count: number;
+    sentiment: {
+      positive: number;
+      constructive: number;
+      critical: number;
+    };
+    bau_tickets: {
+      total: number;
+      resolved: number;
+      resolution_rate_pct: number;
+    };
+  };
+  monthly_trend: MonthlyTrendReportItem[];
+}
+
 
 

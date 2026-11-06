@@ -16,6 +16,7 @@ import { paymentsRouter } from './routes/payments.ts';
 import { systemRouter } from './routes/system.ts';
 import { automationRouter } from './routes/automation.ts';
 import { expensesRouter } from './routes/expenses.ts';
+import { reportsRouter } from './routes/reports.ts';
 
 export const app = createApp();
 
@@ -39,3 +40,4 @@ app.use('/api/payments', paymentsRouter);
 app.use('/api/expenses', expensesRouter);
 app.use('/api/system', systemRouter);
 app.use('/api/automation', automationRouter);
+app.use('/api/reports', reportsRouter);
