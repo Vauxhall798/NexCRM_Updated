@@ -341,3 +341,4 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
     </Modal>
   );
 };
+

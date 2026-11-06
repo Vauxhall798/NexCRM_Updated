@@ -96,3 +96,4 @@ test('Follow-Up & Email Automation Automated Tests', async (t) => {
   await prisma.emailLog.deleteMany({ where: { lead_id: testLead.id } });
   await prisma.lead.delete({ where: { id: testLead.id } });
 });
+

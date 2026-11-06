@@ -1,5 +1,7 @@
 import tls from 'node:tls';
 import net from 'node:net';
+import fs from 'node:fs';
+import path from 'node:path';
 
 export interface SendEmailOptions {
   to: string;
@@ -20,15 +22,53 @@ export interface SendEmailResult {
   mailtoUrl: string;
 }
 
+// Ensure .env files are loaded if running outside standard bootstrap
+function loadLocalEnvIfEmpty() {
+  if (process.env.RESEND_API_KEY && (process.env.MAIL_FROM || process.env.SMTP_FROM)) return;
+  try {
+    const cwd = process.cwd();
+    const candidates = [
+      path.resolve(cwd, '.env'),
+      path.resolve(cwd, 'backend/.env'),
+      path.resolve(cwd, '../.env'),
+    ];
+    for (const p of candidates) {
+      if (fs.existsSync(p)) {
+        const raw = fs.readFileSync(p, 'utf8');
+        for (const line of raw.split('\n')) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed.startsWith('#')) continue;
+          const eq = trimmed.indexOf('=');
+          if (eq > 0) {
+            const k = trimmed.slice(0, eq).trim();
+            const v = trimmed.slice(eq + 1).trim().replace(/^['"]|['"]$/g, '');
+            if (!process.env[k]) {
+              process.env[k] = v;
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+}
+
 // Read configuration from environment
 function getEmailConfig() {
+  loadLocalEnvIfEmpty();
+  const rawFrom =
+    process.env.MAIL_FROM ||
+    process.env.RESEND_FROM ||
+    process.env.SMTP_FROM ||
+    process.env.SMTP_USER ||
+    'info@nexintai.com';
+
   return {
     smtpHost: process.env.SMTP_HOST || '',
     smtpPort: Number(process.env.SMTP_PORT || 587),
     smtpUser: process.env.SMTP_USER || '',
     smtpPass: process.env.SMTP_PASS || '',
-    smtpFrom: process.env.SMTP_FROM || process.env.SMTP_USER || 'crm@nexint.ai',
-    fromName: process.env.SMTP_FROM_NAME || 'NexInt AI CRM',
+    smtpFrom: rawFrom,
+    fromName: process.env.MAIL_FROM_NAME || process.env.SMTP_FROM_NAME || 'NexInt AI',
     resendApiKey: process.env.RESEND_API_KEY || '',
     brevoApiKey: process.env.BREVO_API_KEY || '',
     sendgridApiKey: process.env.SENDGRID_API_KEY || '',
@@ -52,7 +92,23 @@ export async function sendCrmEmail(opts: SendEmailOptions): Promise<SendEmailRes
   // 2. Try Resend API if configured
   if (config.resendApiKey) {
     try {
-      const res = await fetch('https://api.resend.com/emails', {
+      const emailHtml =
+        opts.html ||
+        `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1e293b; background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;">
+          <div style="margin-bottom: 20px; padding-bottom: 14px; border-bottom: 2px solid #0F2547;">
+            <span style="font-size: 18px; font-weight: 800; color: #0F2547; letter-spacing: -0.5px;">NexInt AI</span>
+            <span style="font-size: 12px; color: #3596B0; margin-left: 8px; font-weight: 600;">Enterprise Solutions</span>
+          </div>
+          <div style="font-size: 14px; line-height: 1.7; color: #334155; white-space: pre-wrap;">${opts.text}</div>
+          <div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #f1f5f9; font-size: 11px; color: #94a3b8; display: flex; justify-content: space-between;">
+            <span>Sent via NexInt CRM Automated Follow-up Dispatcher</span>
+            <span>&bull;</span>
+            <span>NexInt AI Technologies</span>
+          </div>
+        </div>`;
+
+      // Primary attempt with configured domain
+      let res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${config.resendApiKey}`,
@@ -63,26 +119,51 @@ export async function sendCrmEmail(opts: SendEmailOptions): Promise<SendEmailRes
           to: [opts.to],
           subject: opts.subject,
           text: opts.text,
-          html: opts.html || `<div style="font-family:sans-serif;line-height:1.6;color:#1e293b;">${opts.text.replace(/\n/g, '<br>')}</div>`,
-          reply_to: opts.replyTo,
+          html: emailHtml,
+          reply_to: opts.replyTo || fromAddress,
         }),
       });
+
+      // If domain is unverified yet in user's Resend dashboard, gracefully fallback to onboarding@resend.dev
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn('Resend primary dispatch notice:', errText);
+
+        if (errText.includes('domain') || errText.includes('validation_error') || res.status === 403) {
+          console.info('Attempting Resend verified sender fallback (onboarding@resend.dev) with reply_to:', fromAddress);
+          res = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${config.resendApiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: `${fromDisplayName} <onboarding@resend.dev>`,
+              to: [opts.to],
+              subject: opts.subject,
+              text: opts.text,
+              html: emailHtml,
+              reply_to: opts.replyTo || fromAddress,
+            }),
+          });
+        }
+      }
 
       if (res.ok) {
         const data = (await res.json()) as any;
         return {
           success: true,
           messageId: data.id || messageId,
-          provider: 'Resend API',
+          provider: 'Resend Cloud API',
           status: 'Sent',
           mailtoUrl,
         };
       } else {
         const errText = await res.text();
-        console.warn('Resend API failed, falling back:', errText);
+        console.warn('Resend API attempt failed, proceeding to fallback:', errText);
       }
-    } catch (err) {
-      console.warn('Error calling Resend API:', err);
+    } catch (err: any) {
+      console.warn('Error calling Resend API:', err?.message || err);
     }
   }
 
@@ -230,3 +311,4 @@ async function sendViaSmtpSocket(
     });
   });
 }
+
