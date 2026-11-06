@@ -11,7 +11,7 @@ expensesRouter.use(requireAuth);
 const expenseInputSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   category: z.string().default('Cloud & Hosting'),
-  amount: z.number().min(0, 'Amount must be non-negative'),
+  amount: z.coerce.number().min(0, 'Amount must be non-negative'),
   currency: z.string().default('INR'),
   expense_date: z.string().optional(),
   status: z.enum(['Paid', 'Pending', 'Scheduled', 'Cancelled']).default('Paid'),
@@ -123,10 +123,19 @@ expensesRouter.get('/', async (req: AuthRequest, res: Response) => {
 // POST /api/expenses — Record a new company expenditure
 expensesRouter.post('/', async (req: AuthRequest, res: Response) => {
   try {
-    const parsed = expenseInputSchema.parse(req.body);
-    const expenseDate = parsed.expense_date
-      ? new Date(parsed.expense_date).toISOString()
-      : new Date().toISOString();
+    const parseResult = expenseInputSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      res.status(400).json({ error: parseResult.error.issues[0]?.message || 'Validation error' });
+      return;
+    }
+    const parsed = parseResult.data;
+    let expenseDate = new Date().toISOString();
+    if (parsed.expense_date) {
+      const d = new Date(parsed.expense_date);
+      if (!isNaN(d.getTime())) {
+        expenseDate = d.toISOString();
+      }
+    }
 
     const created = await prisma.expense.create({
       data: {
@@ -152,13 +161,9 @@ expensesRouter.post('/', async (req: AuthRequest, res: Response) => {
     });
 
     res.status(201).json({ expense: created, message: 'Expense recorded successfully' });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors[0]?.message || 'Validation error' });
-      return;
-    }
+  } catch (err: any) {
     console.error('Error creating expense:', err);
-    res.status(500).json({ error: 'Failed to record expense' });
+    res.status(500).json({ error: err?.message || 'Failed to record expense' });
   }
 });
 
@@ -172,7 +177,12 @@ expensesRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       return;
     }
 
-    const parsed = expenseInputSchema.partial().parse(req.body);
+    const parseResult = expenseInputSchema.partial().safeParse(req.body);
+    if (!parseResult.success) {
+      res.status(400).json({ error: parseResult.error.issues[0]?.message || 'Validation error' });
+      return;
+    }
+    const parsed = parseResult.data;
     const updateData: Record<string, any> = {};
 
     if (parsed.title !== undefined) updateData.title = parsed.title.trim();
@@ -180,7 +190,8 @@ expensesRouter.put('/:id', async (req: AuthRequest, res: Response) => {
     if (parsed.amount !== undefined) updateData.amount = parsed.amount;
     if (parsed.currency !== undefined) updateData.currency = parsed.currency;
     if (parsed.expense_date !== undefined) {
-      updateData.expense_date = new Date(parsed.expense_date).toISOString();
+      const d = parsed.expense_date ? new Date(parsed.expense_date) : null;
+      updateData.expense_date = d && !isNaN(d.getTime()) ? d.toISOString() : existing.expense_date;
     }
     if (parsed.status !== undefined) updateData.status = parsed.status;
     if (parsed.payment_method !== undefined) updateData.payment_method = parsed.payment_method;
@@ -201,13 +212,9 @@ expensesRouter.put('/:id', async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ expense: updated, message: 'Expense updated successfully' });
-  } catch (err) {
-    if (err instanceof z.ZodError) {
-      res.status(400).json({ error: err.errors[0]?.message || 'Validation error' });
-      return;
-    }
+  } catch (err: any) {
     console.error('Error updating expense:', err);
-    res.status(500).json({ error: 'Failed to update expense' });
+    res.status(500).json({ error: err?.message || 'Failed to update expense' });
   }
 });
 

@@ -111,4 +111,52 @@ test('Company Expenses Tracking Automated Tests', async (t) => {
     const afterDelete = await prisma.expense.findUnique({ where: { id: createdExpenseId } });
     assert.equal(afterDelete, null);
   });
+
+  await t.test('5. Validates and parses partial edit payloads safely', async () => {
+    const { z } = await import('../lib/validator.ts');
+    const testSchema = z.object({
+      title: z.string().min(1, 'Title is required'),
+      category: z.string().default('Cloud & Hosting'),
+      amount: z.coerce.number().min(0, 'Amount must be non-negative'),
+      currency: z.string().default('INR'),
+      expense_date: z.string().optional(),
+      status: z.enum(['Paid', 'Pending', 'Scheduled', 'Cancelled']).default('Paid'),
+      payment_method: z.string().default('Bank Transfer / NEFT'),
+      vendor: z.string().optional().default(''),
+      invoice_number: z.string().optional().default(''),
+      receipt_url: z.string().optional().default(''),
+      project_id: z.string().nullable().optional(),
+      paid_by: z.string().optional().default(''),
+      notes: z.string().optional().default(''),
+    });
+
+    // Test quick mark-as-paid partial
+    const quickPaidResult = testSchema.partial().safeParse({ status: 'Paid' });
+    assert.equal(quickPaidResult.success, true);
+    if (quickPaidResult.success) {
+      assert.equal(quickPaidResult.data.status, 'Paid');
+      assert.equal(quickPaidResult.data.title, undefined);
+    }
+
+    // Test editing form payload with string amount and null project
+    const editResult = testSchema.partial().safeParse({
+      title: 'Updated AWS Hosting',
+      amount: '28500',
+      category: 'Cloud & Hosting',
+      project_id: null,
+      status: 'Paid',
+    });
+    assert.equal(editResult.success, true);
+    if (editResult.success) {
+      assert.equal(editResult.data.amount, 28500);
+      assert.equal(editResult.data.title, 'Updated AWS Hosting');
+      assert.equal(editResult.data.project_id, null);
+    }
+
+    // Test parse() throws ZodError when invalid
+    assert.throws(() => {
+      testSchema.parse({ title: '' });
+    }, (err: any) => err instanceof z.ZodError);
+  });
 });
+

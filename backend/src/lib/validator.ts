@@ -18,6 +18,18 @@ export interface SafeParseError {
 
 export type SafeParseResult<T> = SafeParseSuccess<T> | SafeParseError;
 
+export class ZodError extends Error {
+  issues: ValidationIssue[];
+  errors: ValidationIssue[];
+
+  constructor(message: string, issues: ValidationIssue[] = []) {
+    super(message);
+    this.name = 'ZodError';
+    this.issues = issues;
+    this.errors = issues;
+  }
+}
+
 export abstract class SchemaField<T = any> {
   protected isOptionalFlag = false;
   protected isNullableFlag = false;
@@ -226,9 +238,19 @@ export class ObjectSchema<S extends Record<string, SchemaField<any>>> {
 
     return { success: true, data };
   }
+
+  parse(input: unknown): any {
+    const res = this.safeParse(input);
+    if (!res.success) {
+      const firstIssue = res.error.issues[0];
+      throw new ZodError(firstIssue?.message || 'Validation error', res.error.issues);
+    }
+    return res.data;
+  }
 }
 
 export const z = {
+  ZodError,
   string: () => new StringSchema(),
   number: () => new NumberSchema(false),
   boolean: () => new BooleanSchema(),
