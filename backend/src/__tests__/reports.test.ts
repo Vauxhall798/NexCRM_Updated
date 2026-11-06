@@ -125,4 +125,30 @@ test('Executive Reports & Analytics Automated Tests', async (t) => {
     assert.ok(amcProjects.length >= 1);
     assert.ok(amcARR >= 180000);
   });
+
+  await t.test('4. Tracks support tickets received, resolved, and time to resolve', async () => {
+    const ticketCreated = new Date(Date.now() - 4 * 3600 * 1000); // 4 hours ago
+    const ticketResolved = new Date();
+
+    const ticket = await prisma.bauTicket.create({
+      data: {
+        ticket_number: `BAU-TEST-${Date.now()}`,
+        client_id: testClient.id,
+        project_id: testProject.id,
+        title: 'Production LLM Latency Spike',
+        category: 'Performance',
+        priority: 'Critical',
+        state: 'Resolved',
+        created_at: ticketCreated.toISOString(),
+        resolved_at: ticketResolved.toISOString(),
+      },
+    });
+
+    assert.ok(ticket.id);
+    assert.equal(ticket.state, 'Resolved');
+
+    const durationHours =
+      (new Date(ticket.resolved_at!).getTime() - new Date(ticket.created_at).getTime()) / (1000 * 3600);
+    assert.ok(durationHours >= 3.9 && durationHours <= 4.1);
+  });
 });

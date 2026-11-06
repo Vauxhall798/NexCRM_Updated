@@ -108,6 +108,32 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
     showToast('Exported Financial P&L Report!');
   };
 
+  const handleExportSupportReport = () => {
+    if (!data?.support_and_resolution) return;
+    const sup = data.support_and_resolution;
+    const rows = [
+      { Metric: 'Total Support Tickets Received', Value: sup.total_received },
+      { Metric: 'Total Support Tickets Resolved', Value: sup.total_resolved },
+      { Metric: 'Overall Resolution Rate', Value: `${sup.resolution_rate_pct}%` },
+      { Metric: 'Average Time to Resolve', Value: sup.avg_resolution_time_formatted },
+      { Metric: 'Fastest Ticket Resolution', Value: sup.fastest_resolution_formatted },
+      { Metric: 'Longest Ticket Resolution', Value: sup.longest_resolution_formatted },
+      { Metric: 'SLA Adherence Rate', Value: `${sup.sla_adherence_rate_pct}%` },
+      { Metric: 'Tickets Resolved Within SLA', Value: sup.within_sla_count },
+      { Metric: 'Tickets Breaching SLA', Value: sup.breached_sla_count },
+      ...sup.priority_breakdown.map((p) => ({
+        Metric: `${p.priority} Priority - Resolved / Received`,
+        Value: `${p.resolved} / ${p.total} (${p.resolution_rate_pct}%) — Avg Turnaround: ${p.avg_resolution_formatted} (Target SLA: ${p.sla_target})`,
+      })),
+      ...sup.category_breakdown.map((cat) => ({
+        Metric: `Category: ${cat.category}`,
+        Value: `${cat.resolved} / ${cat.total} resolved — Avg Turnaround: ${cat.avg_resolution_formatted}`,
+      })),
+    ];
+    exportToCsv(`NexCRM_Support_Tickets_Resolution_Report_${new Date().toISOString().split('T')[0]}.csv`, rows);
+    showToast('Exported Support Tickets & Resolution Report!');
+  };
+
   if (loading && !data) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
@@ -320,17 +346,26 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
         {/* Client CSAT & Resolution */}
         <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xs">
           <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-            <span>Client CSAT &amp; SLA</span>
-            <span className="p-1 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400">
-              <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+            <span>Support &amp; Resolution</span>
+            <span className="p-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+              <LifeBuoy className="w-3.5 h-3.5" />
             </span>
           </div>
-          <div className="mt-2 text-xl font-black text-slate-900 dark:text-slate-100 flex items-baseline gap-1">
-            <span>{data?.csat_and_quality.avg_csat_rating || 5.0}</span>
-            <span className="text-xs font-bold text-amber-500">/ 5.0</span>
+          <div className="mt-2 text-xl font-black text-slate-900 dark:text-slate-100 flex items-baseline gap-1.5">
+            <span className="text-emerald-600 dark:text-emerald-400">
+              {data?.support_and_resolution?.total_resolved || 0}
+            </span>
+            <span className="text-xs font-semibold text-slate-400">
+              / {data?.support_and_resolution?.total_received || 0} resolved
+            </span>
           </div>
-          <div className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-            BAU: <strong>{data?.csat_and_quality.bau_tickets.resolution_rate_pct || 100}%</strong> resolved
+          <div className="mt-1 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+            <span>
+              Avg: <strong className="text-indigo-600 dark:text-indigo-400">{data?.support_and_resolution?.avg_resolution_time_formatted || '< 4 hrs'}</strong>
+            </span>
+            <span className="font-bold text-emerald-600">
+              {data?.support_and_resolution?.resolution_rate_pct || 100}%
+            </span>
           </div>
         </div>
       </div>
@@ -748,6 +783,185 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* SECTION 6: SUPPORT TICKETS RECEIVED, RESOLVED & RESOLUTION TIME (BAU OPERATIONS) */}
+      <div className="p-5 sm:p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xs space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+              <LifeBuoy className="w-4 h-4" />
+            </span>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                Support Tickets Received, Resolved &amp; Time to Resolve
+              </h3>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleExportSupportReport}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors shadow-2xs cursor-pointer"
+            >
+              <Download className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Export Support CSV</span>
+            </button>
+            {onNavigate && (
+              <button
+                type="button"
+                onClick={() => onNavigate('bau')}
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 transition-colors cursor-pointer"
+              >
+                Open BAU Board &rarr;
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* 5 High-Impact Metric Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+            <span className="text-[11px] font-semibold text-slate-500 block">Tickets Received</span>
+            <div className="mt-1 text-xl font-black text-slate-900 dark:text-slate-100">
+              {data?.support_and_resolution?.total_received || 0}
+            </div>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              {data?.support_and_resolution?.open_tickets || 0} new incoming
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+            <span className="text-[11px] font-semibold text-slate-500 block">Tickets Resolved</span>
+            <div className="mt-1 text-xl font-black text-emerald-600 dark:text-emerald-400">
+              {data?.support_and_resolution?.total_resolved || 0}
+            </div>
+            <span className="text-[10px] text-emerald-600 font-bold block mt-0.5">
+              {data?.support_and_resolution?.resolution_rate_pct || 100}% resolution rate
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+            <span className="text-[11px] font-semibold text-slate-500 block">Avg Time to Resolve</span>
+            <div className="mt-1 text-xl font-black text-indigo-600 dark:text-indigo-400">
+              {data?.support_and_resolution?.avg_resolution_time_formatted || '< 4 hrs'}
+            </div>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              Fastest: {data?.support_and_resolution?.fastest_resolution_formatted || '30m'}
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+            <span className="text-[11px] font-semibold text-slate-500 block">SLA Adherence</span>
+            <div className="mt-1 text-xl font-black text-emerald-600 dark:text-emerald-400">
+              {data?.support_and_resolution?.sla_adherence_rate_pct || 100}%
+            </div>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              {data?.support_and_resolution?.within_sla_count || 0} on-time &bull; {data?.support_and_resolution?.breached_sla_count || 0} breached
+            </span>
+          </div>
+
+          <div className="p-3.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
+            <span className="text-[11px] font-semibold text-slate-500 block">Active Workload</span>
+            <div className="mt-1 text-xl font-black text-amber-600 dark:text-amber-400">
+              {(data?.support_and_resolution?.in_progress_tickets || 0) + (data?.support_and_resolution?.pending_tickets || 0)}
+            </div>
+            <span className="text-[10px] text-slate-400 block mt-0.5">
+              {data?.support_and_resolution?.in_progress_tickets || 0} in-progress &bull; {data?.support_and_resolution?.pending_tickets || 0} pending
+            </span>
+          </div>
+        </div>
+
+        {/* Priority SLA & Resolution Time Breakdown Table & Category Turnaround */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 pt-1">
+          {/* By Priority */}
+          <div className="space-y-2.5">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+              Resolution Turnaround Time &amp; SLA by Priority
+            </span>
+            <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
+              <table className="w-full text-xs text-left">
+                <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 font-semibold border-b border-slate-200 dark:border-slate-800">
+                  <tr>
+                    <th className="py-2.5 px-3">Priority</th>
+                    <th className="py-2.5 px-2.5 text-center">Received</th>
+                    <th className="py-2.5 px-2.5 text-center text-emerald-600">Resolved</th>
+                    <th className="py-2.5 px-3 text-center">Resolution Rate</th>
+                    <th className="py-2.5 px-3 text-right">Avg Turnaround</th>
+                    <th className="py-2.5 px-3 text-right text-slate-400">Target SLA</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                  {data?.support_and_resolution?.priority_breakdown.map((p) => {
+                    const badgeClass =
+                      p.priority === 'Critical'
+                        ? 'text-rose-600 bg-rose-50 dark:bg-rose-950/60 border-rose-200'
+                        : p.priority === 'High'
+                        ? 'text-orange-600 bg-orange-50 dark:bg-orange-950/60 border-orange-200'
+                        : p.priority === 'Medium'
+                        ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200'
+                        : 'text-slate-600 bg-slate-50 dark:bg-slate-800 border-slate-200';
+
+                    return (
+                      <tr key={p.priority} className="hover:bg-slate-50/60 dark:hover:bg-slate-800/40">
+                        <td className="py-2.5 px-3">
+                          <span className={`inline-block px-2 py-0.5 rounded-md text-[10px] font-bold border ${badgeClass}`}>
+                            {p.priority}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-2.5 text-center font-semibold text-slate-700 dark:text-slate-300">
+                          {p.total}
+                        </td>
+                        <td className="py-2.5 px-2.5 text-center font-black text-emerald-600">
+                          {p.resolved}
+                        </td>
+                        <td className="py-2.5 px-3 text-center font-bold">
+                          {p.total > 0 ? `${p.resolution_rate_pct}%` : '—'}
+                        </td>
+                        <td className="py-2.5 px-3 text-right font-black text-indigo-600 dark:text-indigo-400">
+                          {p.avg_resolution_formatted}
+                        </td>
+                        <td className="py-2.5 px-3 text-right text-slate-400 font-mono text-[11px]">
+                          {p.sla_target}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* By Issue Category */}
+          <div className="space-y-2.5">
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
+              Resolution Turnaround Time by Issue Category
+            </span>
+            <div className="space-y-2">
+              {data?.support_and_resolution?.category_breakdown.map((cat) => (
+                <div
+                  key={cat.category}
+                  className="p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 flex items-center justify-between text-xs"
+                >
+                  <div className="space-y-0.5">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">{cat.category}</span>
+                    <span className="text-[11px] text-slate-400 block">
+                      {cat.resolved} resolved of {cat.total} tickets
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-black text-indigo-600 dark:text-indigo-400 block">
+                      {cat.avg_resolution_formatted}
+                    </span>
+                    <span className="text-[10px] text-slate-400">avg turnaround</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
+

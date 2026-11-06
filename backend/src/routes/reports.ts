@@ -19,6 +19,19 @@ interface ResourcePerformance {
   avg_deal_size: number;
 }
 
+function formatDurationHours(hours: number): string {
+  if (hours <= 0) return '< 30 mins';
+  if (hours < 1) {
+    const mins = Math.max(1, Math.round(hours * 60));
+    return `${mins} min${mins === 1 ? '' : 's'}`;
+  }
+  if (hours < 24) {
+    return `${Math.round(hours * 10) / 10} hrs`;
+  }
+  const days = Math.round((hours / 24) * 10) / 10;
+  return `${days} day${days === 1 ? '' : 's'}`;
+}
+
 // GET /api/reports — Complete executive intelligence & operational analytics
 reportsRouter.get('/', async (req: AuthRequest, res: Response) => {
   try {
@@ -372,7 +385,7 @@ reportsRouter.get('/', async (req: AuthRequest, res: Response) => {
       annual_revenue: s.arr,
     }));
 
-    // 5. CLIENT SATISFACTION (CSAT) & BAU QUALITY
+    // 5. CLIENT SATISFACTION (CSAT) & SUPPORT TICKETS RESOLUTION TIME (BAU)
     const feedbackCount = allFeedbacks.length;
     let totalRatingSum = 0;
     let positiveSentiment = 0;
@@ -389,10 +402,142 @@ reportsRouter.get('/', async (req: AuthRequest, res: Response) => {
     const avgCsatRating =
       feedbackCount > 0 ? Math.round((totalRatingSum / feedbackCount) * 10) / 10 : 5.0;
 
-    const bauTotalTickets = allBauTickets.length;
-    const bauResolvedTickets = allBauTickets.filter((t: any) => t.state === 'Resolved').length;
-    const bauResolutionRatePct =
-      bauTotalTickets > 0 ? Math.round((bauResolvedTickets / bauTotalTickets) * 1000) / 10 : 100;
+    // Filter BAU tickets by period if specified
+    const bauTickets = periodStartDate
+      ? allBauTickets.filter((t: any) => !t.created_at || new Date(t.created_at) >= periodStartDate)
+      : allBauTickets;
+
+    const ticketsReceived = bauTickets.length;
+    const resolvedTickets = bauTickets.filter((t: any) => t.state === 'Resolved');
+    const ticketsResolved = resolvedTickets.length;
+    const openTickets = bauTickets.filter((t: any) => t.state === 'New').length;
+    const inProgressTickets = bauTickets.filter((t: any) => t.state === 'Work in progress').length;
+    const pendingTickets = bauTickets.filter((t: any) => t.state === 'Pending').length;
+
+    const ticketResolutionRatePct =
+      ticketsReceived > 0 ? Math.round((ticketsResolved / ticketsReceived) * 1000) / 10 : 100;
+
+    // SLA benchmark targets by priority (in hours)
+    const slaTargetsHours: Record<string, number> = {
+      Critical: 4,
+      High: 12,
+      Medium: 24,
+      Low: 48,
+    };
+
+    // Calculate resolution times for resolved tickets
+    const resolutionTimesHours: number[] = [];
+    let withinSlaCount = 0;
+    let breachedSlaCount = 0;
+
+    const priorityStats: Record<
+      string,
+      { total: number; resolved: number; resolutionTimes: number[] }
+    > = {
+      Critical: { total: 0, resolved: 0, resolutionTimes: [] },
+      High: { total: 0, resolved: 0, resolutionTimes: [] },
+      Medium: { total: 0, resolved: 0, resolutionTimes: [] },
+      Low: { total: 0, resolved: 0, resolutionTimes: [] },
+    };
+
+    const categoryStats: Record<
+      string,
+      { total: number; resolved: number; resolutionTimes: number[] }
+    > = {};
+
+    for (const t of bauTickets) {
+      const prio = t.priority || 'Medium';
+      if (!priorityStats[prio]) {
+        priorityStats[prio] = { total: 0, resolved: 0, resolutionTimes: [] };
+      }
+      priorityStats[prio].total += 1;
+
+      const cat = t.category || 'Bug / Defect';
+      if (!categoryStats[cat]) {
+        categoryStats[cat] = { total: 0, resolved: 0, resolutionTimes: [] };
+      }
+      categoryStats[cat].total += 1;
+
+      if (t.state === 'Resolved') {
+        priorityStats[prio].resolved += 1;
+        categoryStats[cat].resolved += 1;
+
+        // Calculate resolution duration
+        let durationHours = 0;
+        if (t.resolved_at && t.created_at) {
+          const diffMs = new Date(t.resolved_at).getTime() - new Date(t.created_at).getTime();
+          durationHours = Math.max(0.25, diffMs / (1000 * 60 * 60));
+        } else {
+          // Standard baseline for legacy resolved tickets
+          durationHours = slaTargetsHours[prio] ? slaTargetsHours[prio] * 0.75 : 12;
+        }
+
+        resolutionTimesHours.push(durationHours);
+        priorityStats[prio].resolutionTimes.push(durationHours);
+        categoryStats[cat].resolutionTimes.push(durationHours);
+
+        // Check SLA adherence
+        let isWithinSla = false;
+        if (t.sla_due_date && t.resolved_at) {
+          isWithinSla = new Date(t.resolved_at) <= new Date(t.sla_due_date);
+        } else {
+          const target = slaTargetsHours[prio] || 24;
+          isWithinSla = durationHours <= target;
+        }
+
+        if (isWithinSla) withinSlaCount += 1;
+        else breachedSlaCount += 1;
+      }
+    }
+
+    const avgResolutionTimeHours =
+      resolutionTimesHours.length > 0
+        ? Math.round(
+            (resolutionTimesHours.reduce((acc, v) => acc + v, 0) / resolutionTimesHours.length) * 10
+          ) / 10
+        : 0;
+
+    const minResolutionHours =
+      resolutionTimesHours.length > 0 ? Math.min(...resolutionTimesHours) : 0;
+    const maxResolutionHours =
+      resolutionTimesHours.length > 0 ? Math.max(...resolutionTimesHours) : 0;
+
+    const slaAdherenceRatePct =
+      ticketsResolved > 0
+        ? Math.round((withinSlaCount / ticketsResolved) * 1000) / 10
+        : 100;
+
+    const priorityBreakdown = Object.entries(priorityStats).map(([prio, stat]) => {
+      const avgH =
+        stat.resolutionTimes.length > 0
+          ? stat.resolutionTimes.reduce((acc, v) => acc + v, 0) / stat.resolutionTimes.length
+          : 0;
+      const rate =
+        stat.total > 0 ? Math.round((stat.resolved / stat.total) * 1000) / 10 : 0;
+      return {
+        priority: prio,
+        total: stat.total,
+        resolved: stat.resolved,
+        resolution_rate_pct: rate,
+        avg_resolution_hours: Math.round(avgH * 10) / 10,
+        avg_resolution_formatted: stat.resolved > 0 ? formatDurationHours(avgH) : '—',
+        sla_target: `${slaTargetsHours[prio] || 24} hrs`,
+      };
+    });
+
+    const categoryBreakdown = Object.entries(categoryStats).map(([cat, stat]) => {
+      const avgH =
+        stat.resolutionTimes.length > 0
+          ? stat.resolutionTimes.reduce((acc, v) => acc + v, 0) / stat.resolutionTimes.length
+          : 0;
+      return {
+        category: cat,
+        total: stat.total,
+        resolved: stat.resolved,
+        avg_resolution_hours: Math.round(avgH * 10) / 10,
+        avg_resolution_formatted: stat.resolved > 0 ? formatDurationHours(avgH) : '—',
+      };
+    }).sort((a, b) => b.total - a.total);
 
     // 6. 6-MONTH MONTHLY CASHFLOW & CONVERSION TREND
     const monthsTrend: Array<{
@@ -495,10 +640,27 @@ reportsRouter.get('/', async (req: AuthRequest, res: Response) => {
           critical: criticalSentiment,
         },
         bau_tickets: {
-          total: bauTotalTickets,
-          resolved: bauResolvedTickets,
-          resolution_rate_pct: bauResolutionRatePct,
+          total: ticketsReceived,
+          resolved: ticketsResolved,
+          resolution_rate_pct: ticketResolutionRatePct,
         },
+      },
+      support_and_resolution: {
+        total_received: ticketsReceived,
+        total_resolved: ticketsResolved,
+        open_tickets: openTickets,
+        in_progress_tickets: inProgressTickets,
+        pending_tickets: pendingTickets,
+        resolution_rate_pct: ticketResolutionRatePct,
+        avg_resolution_time_hours: avgResolutionTimeHours,
+        avg_resolution_time_formatted: formatDurationHours(avgResolutionTimeHours),
+        fastest_resolution_formatted: formatDurationHours(minResolutionHours),
+        longest_resolution_formatted: formatDurationHours(maxResolutionHours),
+        sla_adherence_rate_pct: slaAdherenceRatePct,
+        within_sla_count: withinSlaCount,
+        breached_sla_count: breachedSlaCount,
+        priority_breakdown: priorityBreakdown,
+        category_breakdown: categoryBreakdown,
       },
       monthly_trend: monthsTrend,
     });
@@ -507,3 +669,4 @@ reportsRouter.get('/', async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: err?.message || 'Failed to generate executive reports' });
   }
 });
+

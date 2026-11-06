@@ -783,6 +783,42 @@ export interface MonthlyTrendReportItem {
   leads_converted: number;
 }
 
+export interface SupportPriorityItem {
+  priority: string;
+  total: number;
+  resolved: number;
+  resolution_rate_pct: number;
+  avg_resolution_hours: number;
+  avg_resolution_formatted: string;
+  sla_target: string;
+}
+
+export interface SupportCategoryItem {
+  category: string;
+  total: number;
+  resolved: number;
+  avg_resolution_hours: number;
+  avg_resolution_formatted: string;
+}
+
+export interface SupportAndResolutionReport {
+  total_received: number;
+  total_resolved: number;
+  open_tickets: number;
+  in_progress_tickets: number;
+  pending_tickets: number;
+  resolution_rate_pct: number;
+  avg_resolution_time_hours: number;
+  avg_resolution_time_formatted: string;
+  fastest_resolution_formatted: string;
+  longest_resolution_formatted: string;
+  sla_adherence_rate_pct: number;
+  within_sla_count: number;
+  breached_sla_count: number;
+  priority_breakdown: SupportPriorityItem[];
+  category_breakdown: SupportCategoryItem[];
+}
+
 export interface ExecutiveReportData {
   period: string;
   financials: {
@@ -834,6 +870,7 @@ export interface ExecutiveReportData {
       resolution_rate_pct: number;
     };
   };
+  support_and_resolution: SupportAndResolutionReport;
   monthly_trend: MonthlyTrendReportItem[];
 }
 
