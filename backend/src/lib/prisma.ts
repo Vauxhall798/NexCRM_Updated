@@ -400,6 +400,57 @@ db.exec(`
   SET "name" = 'NexInt AI admin',
       "role" = 'ADMIN'
   WHERE "email" = 'admin@nexcrm.io';
+
+  -- Admin user: Vivek Mohandass
+  INSERT OR IGNORE INTO "User" ("id", "name", "email", "password_hash", "role", "created_at")
+  VALUES (
+    'admin-vivek-user-id',
+    'Vivek Mohandass',
+    'vinuvivek1@gmail.com',
+    'scrypt$a1b2c3d4e5f678901234567890abcdef$66322d0118f4c63498721b960989d4727f69466a1235484eec1028cc7f8ae4d42376122a3cc95ca4656d21db33a7f6c91ac13683bddc12e3b33af45c11221326',
+    'ADMIN',
+    '2026-11-01T00:00:00.000Z'
+  );
+
+  UPDATE "User"
+  SET "name" = 'Vivek Mohandass',
+      "role" = 'ADMIN',
+      "password_hash" = 'scrypt$a1b2c3d4e5f678901234567890abcdef$66322d0118f4c63498721b960989d4727f69466a1235484eec1028cc7f8ae4d42376122a3cc95ca4656d21db33a7f6c91ac13683bddc12e3b33af45c11221326'
+  WHERE "email" = 'vinuvivek1@gmail.com';
+
+  -- Admin user: Glanee Rose
+  INSERT OR IGNORE INTO "User" ("id", "name", "email", "password_hash", "role", "created_at")
+  VALUES (
+    'admin-glanee-user-id',
+    'Glanee Rose',
+    'glenysimon@gmail.com',
+    'scrypt$a1b2c3d4e5f678901234567890abcdef$66322d0118f4c63498721b960989d4727f69466a1235484eec1028cc7f8ae4d42376122a3cc95ca4656d21db33a7f6c91ac13683bddc12e3b33af45c11221326',
+    'ADMIN',
+    '2026-11-01T00:00:00.000Z'
+  );
+
+  UPDATE "User"
+  SET "name" = 'Glanee Rose',
+      "role" = 'ADMIN',
+      "password_hash" = 'scrypt$a1b2c3d4e5f678901234567890abcdef$66322d0118f4c63498721b960989d4727f69466a1235484eec1028cc7f8ae4d42376122a3cc95ca4656d21db33a7f6c91ac13683bddc12e3b33af45c11221326'
+  WHERE "email" = 'glenysimon@gmail.com';
+
+  -- Admin user: Vishaal Arun
+  INSERT OR IGNORE INTO "User" ("id", "name", "email", "password_hash", "role", "created_at")
+  VALUES (
+    'admin-vishaal-user-id',
+    'Vishaal Arun',
+    'vishaal351@gmail.com',
+    'scrypt$a1b2c3d4e5f678901234567890abcdef$66322d0118f4c63498721b960989d4727f69466a1235484eec1028cc7f8ae4d42376122a3cc95ca4656d21db33a7f6c91ac13683bddc12e3b33af45c11221326',
+    'ADMIN',
+    '2026-11-01T00:00:00.000Z'
+  );
+
+  UPDATE "User"
+  SET "name" = 'Vishaal Arun',
+      "role" = 'ADMIN',
+      "password_hash" = 'scrypt$a1b2c3d4e5f678901234567890abcdef$66322d0118f4c63498721b960989d4727f69466a1235484eec1028cc7f8ae4d42376122a3cc95ca4656d21db33a7f6c91ac13683bddc12e3b33af45c11221326'
+  WHERE "email" = 'vishaal351@gmail.com';
 `);
 
 // Migrate AMC columns for Project table if not already present

@@ -5,14 +5,16 @@ import { prisma } from '../lib/prisma.ts';
 import { signToken } from '../middleware/auth.ts';
 
 describe('Lead -> Conversion -> Client Automated Tests', () => {
+  const testCompany = `QuantumGrid_${Date.now()}`;
+  const testEmail = `jordan_${Date.now()}@quantumgrid.io`;
   let authToken = '';
   let testUserId = '';
   let testLeadId = '';
   let testConversionId = '';
 
   before(async () => {
-    await prisma.client.deleteMany({ where: { company: 'QuantumGrid Systems' } });
-    await prisma.lead.deleteMany({ where: { company: 'QuantumGrid Systems' } });
+    await prisma.client.deleteMany({ where: { company: testCompany } });
+    await prisma.lead.deleteMany({ where: { company: testCompany } });
     const testUser = await prisma.user.upsert({
       where: { email: 'test-runner@nexcrm.io' },
       update: {},
@@ -50,8 +52,8 @@ describe('Lead -> Conversion -> Client Automated Tests', () => {
       headers: { Authorization: `Bearer ${authToken}` },
       body: {
         name: 'Jordan Blake',
-        company: 'QuantumGrid Systems',
-        email: 'jordan@quantumgrid.io',
+        company: testCompany,
+        email: testEmail,
         phone: '+1 (555) 234-5678',
         source: 'Website',
         service: 'AI services',
@@ -130,9 +132,9 @@ describe('Lead -> Conversion -> Client Automated Tests', () => {
     const createdClient = convertRes.body.client;
     assert.ok(createdClient);
     assert.equal(createdClient.lead_id, testLeadId);
-    assert.equal(createdClient.company, 'QuantumGrid Systems');
+    assert.equal(createdClient.company, testCompany);
     assert.equal(createdClient.contact_name, 'Jordan Blake');
-    assert.equal(createdClient.email, 'jordan@quantumgrid.io');
+    assert.equal(createdClient.email, testEmail);
     assert.equal(createdClient.phone, '+1 (555) 234-5678');
 
     const history = JSON.parse(convertRes.body.conversion.history);

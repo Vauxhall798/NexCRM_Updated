@@ -8,6 +8,13 @@ interface LoginPageProps {
   onLoginSuccess: (user: User) => void;
 }
 
+const ADMIN_ACCOUNTS = [
+  { name: 'Vivek Mohandass', email: 'vinuvivek1@gmail.com' },
+  { name: 'Glanee Rose', email: 'glenysimon@gmail.com' },
+  { name: 'Vishaal Arun', email: 'vishaal351@gmail.com' },
+  { name: 'NexInt Admin', email: 'admin@nexcrm.io' },
+];
+
 export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
@@ -127,6 +134,33 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
           {error && (
             <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-700 dark:text-rose-300">
               {error}
+            </div>
+          )}
+
+          {mode === 'login' && (
+            <div className="mb-4">
+              <label className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                Quick Admin Login
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {ADMIN_ACCOUNTS.map((acc) => (
+                  <button
+                    key={acc.email}
+                    type="button"
+                    onClick={() => {
+                      setEmail(acc.email);
+                      setPassword('Admin123!');
+                    }}
+                    className={`px-2.5 py-1 text-[11px] font-medium rounded-lg border transition-all cursor-pointer ${
+                      email === acc.email
+                        ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-bold shadow-2xs'
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {acc.name}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
 
