@@ -203,18 +203,8 @@ automationRouter.get('/settings', async (_req: AuthRequest, res: Response) => {
     const autoAdvance = (map['AUTO_ADVANCE_SCHEDULE'] ?? 'true') !== 'false';
     const autoLogNote = (map['AUTO_LOG_NOTE'] ?? 'true') !== 'false';
     const noteAuthor = map['NOTE_AUTHOR_NAME'] ?? 'login 1';
-    const selectedProvider =
-      map['PREFERRED_PROVIDER'] ??
-      (resendKey ? 'resend' : brevoKey ? 'brevo' : smtpHost ? 'smtp' : 'simulated');
-
-    let activeProviderDisplay = 'CRM Local / Simulated (Ready)';
-    if (selectedProvider === 'resend' || (!selectedProvider && resendKey)) {
-      activeProviderDisplay = 'Resend Cloud API';
-    } else if (selectedProvider === 'brevo' || (!selectedProvider && brevoKey)) {
-      activeProviderDisplay = 'Brevo Cloud API';
-    } else if (selectedProvider === 'smtp' || (!selectedProvider && smtpHost)) {
-      activeProviderDisplay = `SMTP Server (${smtpHost || 'Custom'})`;
-    }
+    const selectedProvider = 'resend';
+    const activeProviderDisplay = 'Resend Cloud API';
 
     const geminiKey = process.env.GEMINI_ARGON_API_KEY || process.env.GEMINI_API_KEY ? 'Configured (Active)' : '';
 

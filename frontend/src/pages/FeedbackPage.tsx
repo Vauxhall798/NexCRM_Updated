@@ -757,7 +757,6 @@ export const FeedbackPage: React.FC<FeedbackPageProps> = ({ onNavigate }) => {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingFeedback ? 'Edit Client Feedback' : 'Log Client Feedback'}
-        subtitle="Record feedback received from a client stakeholder and document our team's follow-up action."
       >
         <form onSubmit={handleSaveFeedback} className="space-y-4">
           {formError && (

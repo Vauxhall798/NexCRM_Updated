@@ -896,9 +896,6 @@ Date: ${formatDate(inv.paid_date || inv.issue_date)}`;
               <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
                 Client Payment Phases &amp; Milestone Billing
               </h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Track payments of clients in structured milestone phases in respect to each project.
-              </p>
             </div>
           </div>
         </div>
@@ -1518,7 +1515,6 @@ Date: ${formatDate(inv.paid_date || inv.issue_date)}`;
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingPayment ? 'Edit Client Payment Phase' : 'Add Client Payment Phase'}
-        subtitle="Schedule or record a milestone payment phase for a project"
         maxWidth="max-w-xl"
       >
         <form onSubmit={handleSavePayment} className="space-y-4">
@@ -1891,7 +1887,6 @@ Date: ${formatDate(inv.paid_date || inv.issue_date)}`;
         open={generateModalOpen}
         onClose={() => setGenerateModalOpen(false)}
         title="Auto-Generate Project Milestone Phases"
-        subtitle="Automatically divide project budget into structured billing milestone phases"
         maxWidth="max-w-md"
       >
         <form onSubmit={handleAutoGenerate} className="space-y-4">

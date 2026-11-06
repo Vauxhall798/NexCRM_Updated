@@ -691,7 +691,6 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingEntry ? `Edit Timeline Entry — ${editingEntry.title}` : 'Add Timeline Entry'}
-        subtitle="Record a milestone, task, meeting, delivery, issue, or note."
       >
         <form onSubmit={handleSaveEntry} className="space-y-4">
           {formError && (
@@ -830,7 +829,6 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
         open={overrideModalOpen}
         onClose={() => setOverrideModalOpen(false)}
         title="Project Progress Settings"
-        subtitle="Progress is automatically calculated from Done vs Total timeline entries unless manually overridden."
         maxWidth="max-w-md"
       >
         <form onSubmit={handleSaveProgressOverride} className="space-y-4">

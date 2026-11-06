@@ -639,7 +639,6 @@ export const ClientsPage: React.FC<ClientsPageProps> = ({
           open={projectModalOpen}
           onClose={() => setProjectModalOpen(false)}
           title={`Add Project for ${selectedClient.company}`}
-          subtitle="Client is pre-selected. Configure project schedule, budget, and project manager."
         >
           <form onSubmit={handleCreateProjectForClient} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1111,7 +1110,6 @@ export const ClientsPage: React.FC<ClientsPageProps> = ({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingClient ? `Edit Client — ${editingClient.company}` : 'Add Client'}
-        subtitle="Enter company details, primary contact person, and account status."
       >
         <form onSubmit={handleSaveClient} className="space-y-4">
           {formError && (

@@ -1143,7 +1143,6 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
             ? `Mark as Not Converted — ${activeConversion?.lead.company}`
             : `Move Back to Negotiation — ${activeConversion?.lead.company}`
         }
-        subtitle="Any change in outcome is logged in the conversion audit trail."
         maxWidth="max-w-lg"
       >
         {activeConversion && (
@@ -1322,7 +1321,6 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
         open={Boolean(historyConversion)}
         onClose={() => setHistoryConversion(null)}
         title={`Outcome History — ${historyConversion?.lead.company || ''}`}
-        subtitle="Audit log of conversion status changes recorded for this lead."
         maxWidth="max-w-lg"
       >
         {historyConversion && (

@@ -34,14 +34,8 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<'provider' | 'automation' | 'testing' | 'logs'>('provider');
 
-  // Configuration Form State
-  const [provider, setProvider] = useState<'resend' | 'brevo' | 'smtp' | 'simulated'>('resend');
+  // Configuration Form State (Resend Cloud API Only)
   const [resendApiKey, setResendApiKey] = useState('');
-  const [brevoApiKey, setBrevoApiKey] = useState('');
-  const [smtpHost, setSmtpHost] = useState('');
-  const [smtpPort, setSmtpPort] = useState(587);
-  const [smtpUser, setSmtpUser] = useState('');
-  const [smtpPass, setSmtpPass] = useState('');
   const [mailFrom, setMailFrom] = useState('info@nexintai.com');
   const [fromName, setFromName] = useState('NexInt AI');
 
@@ -52,13 +46,11 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
   const [noteAuthor, setNoteAuthor] = useState('login 1');
 
   // Status & Metadata from Server
-  const [activeProviderName, setActiveProviderName] = useState('Checking...');
+  const [activeProviderName, setActiveProviderName] = useState('Resend Cloud API');
   const [aiGeneratorStatus, setAiGeneratorStatus] = useState('');
 
-  // Password visibility toggles
+  // Password visibility toggle
   const [showResendKey, setShowResendKey] = useState(false);
-  const [showBrevoKey, setShowBrevoKey] = useState(false);
-  const [showSmtpPass, setShowSmtpPass] = useState(false);
 
   // Live Test Email State
   const [testEmail, setTestEmail] = useState('');
@@ -83,20 +75,14 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
       const res = await apiFetch<{ settings: AutoEmailSettings }>('/automation/settings');
       if (res?.settings) {
         const s = res.settings;
-        setProvider(s.preferred_provider || (s.resend_api_key ? 'resend' : s.smtp_host ? 'smtp' : 'simulated'));
         setResendApiKey(s.resend_api_key || '');
-        setBrevoApiKey(s.brevo_api_key || '');
-        setSmtpHost(s.smtp_host || '');
-        setSmtpPort(s.smtp_port || 587);
-        setSmtpUser(s.smtp_user || '');
-        setSmtpPass(s.smtp_pass || '');
         setMailFrom(s.mail_from || 'info@nexintai.com');
         setFromName(s.from_name || 'NexInt AI');
         setDefaultInterval(s.default_followup_interval_days || 4);
         setAutoAdvance(s.auto_advance_status !== false);
         setAutoLogNote(s.auto_log_note !== false);
         setNoteAuthor(s.note_author_name || 'login 1');
-        setActiveProviderName(s.active_provider || 'Resend Cloud API');
+        setActiveProviderName('Resend Cloud API');
         setAiGeneratorStatus(s.ai_generator_status || 'Active');
       }
     } catch (err: any) {
@@ -132,13 +118,8 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
       await apiFetch('/automation/settings', {
         method: 'POST',
         body: JSON.stringify({
-          preferred_provider: provider,
+          preferred_provider: 'resend',
           resend_api_key: resendApiKey,
-          brevo_api_key: brevoApiKey,
-          smtp_host: smtpHost,
-          smtp_port: smtpPort,
-          smtp_user: smtpUser,
-          smtp_pass: smtpPass,
           mail_from: mailFrom,
           from_name: fromName,
           default_followup_interval_days: defaultInterval,
@@ -206,7 +187,7 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
       {/* Top Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#0F2547] via-[#173461] to-[#1E3F73] text-white shadow-lg">
         <div>
-          <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex items-center gap-2">
             <span className="p-1.5 rounded-lg bg-teal-400/20 text-[#49AFCB]">
               <Mail className="w-5 h-5" />
             </span>
@@ -215,9 +196,6 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
               Live Engine
             </span>
           </div>
-          <p className="text-xs text-slate-300 max-w-2xl leading-relaxed">
-            Configure your email transport (Resend API, SMTP Server, or Brevo), sender branding, follow-up automation intervals, and test real-time inbox delivery.
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
@@ -297,8 +275,8 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
-          <Server className="w-3.5 h-3.5" />
-          Email Service Provider
+          <Key className="w-3.5 h-3.5" />
+          Resend Cloud API
         </button>
 
         <button
@@ -341,129 +319,71 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
         </button>
       </div>
 
-      {/* Tab 1: Email Service Provider Selection & Credentials */}
+      {/* Tab 1: Resend Cloud API Configuration & Sender Identity */}
       {activeTab === 'provider' && (
         <form onSubmit={handleSaveSettings} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3.5">
-            {/* Resend Option */}
-            <div
-              onClick={() => setProvider('resend')}
-              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                provider === 'resend'
-                  ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 shadow-md ring-2 ring-indigo-500/20'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-indigo-700 dark:text-indigo-400">
-                    Recommended
-                  </span>
-                  <input
-                    type="radio"
-                    name="provider_choice"
-                    checked={provider === 'resend'}
-                    onChange={() => setProvider('resend')}
-                    className="text-indigo-600"
-                  />
+          {/* Resend API Key Card */}
+          <div className="p-6 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-white dark:bg-slate-900 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <span className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400">
+                  <Key className="w-5 h-5" />
+                </span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                      Resend Cloud API
+                    </h3>
+                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      Active
+                    </span>
+                  </div>
                 </div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Resend Cloud API</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Modern API, high inbox deliverability, free 3,000 emails/month.
-                </p>
               </div>
-              <div className="mt-3 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" />
-                Active on your system
+              <a
+                href="https://resend.com/api-keys"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                Get Resend API Key
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Resend API Key (`re_...`) *
+              </label>
+              <div className="relative">
+                <input
+                  type={showResendKey ? 'text' : 'password'}
+                  required
+                  value={resendApiKey}
+                  onChange={(e) => setResendApiKey(e.target.value)}
+                  placeholder="re_xxxxxxxxxxxxxxxxxxxx"
+                  className="w-full pl-3.5 pr-10 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResendKey(!showResendKey)}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
+                >
+                  {showResendKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
-            {/* Custom SMTP Server Option */}
-            <div
-              onClick={() => setProvider('smtp')}
-              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                provider === 'smtp'
-                  ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 shadow-md ring-2 ring-indigo-500/20'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Standard</span>
-                  <input
-                    type="radio"
-                    name="provider_choice"
-                    checked={provider === 'smtp'}
-                    onChange={() => setProvider('smtp')}
-                    className="text-indigo-600"
-                  />
-                </div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Custom SMTP Server</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Google Workspace, Zoho, Microsoft 365, AWS SES SMTP.
-                </p>
+            <div className="p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex items-start gap-2.5">
+              <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+              <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                <span className="font-bold text-slate-900 dark:text-slate-100">Smart Domain Fallback Built-in: </span>
+                If your domain is pending DNS verification in Resend, messages automatically route through Resend&apos;s verified onboarding relay (<code className="text-indigo-600 dark:text-indigo-400 font-semibold">onboarding@resend.dev</code>) with reply-to set to <code className="text-slate-800 dark:text-slate-200">{mailFrom}</code>.
               </div>
-              <div className="mt-3 text-[10px] font-medium text-slate-400">Port 465 (SSL) / 587 (TLS)</div>
-            </div>
-
-            {/* Brevo Option */}
-            <div
-              onClick={() => setProvider('brevo')}
-              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                provider === 'brevo'
-                  ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 shadow-md ring-2 ring-indigo-500/20'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">API</span>
-                  <input
-                    type="radio"
-                    name="provider_choice"
-                    checked={provider === 'brevo'}
-                    onChange={() => setProvider('brevo')}
-                    className="text-indigo-600"
-                  />
-                </div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Brevo (Sendinblue)</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Direct HTTP relay API, free 300 emails/day.
-                </p>
-              </div>
-              <div className="mt-3 text-[10px] font-medium text-slate-400">API Key integration</div>
-            </div>
-
-            {/* CRM Local / Simulated Mode */}
-            <div
-              onClick={() => setProvider('simulated')}
-              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between ${
-                provider === 'simulated'
-                  ? 'border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30 shadow-md ring-2 ring-indigo-500/20'
-                  : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-500">Zero API</span>
-                  <input
-                    type="radio"
-                    name="provider_choice"
-                    checked={provider === 'simulated'}
-                    onChange={() => setProvider('simulated')}
-                    className="text-indigo-600"
-                  />
-                </div>
-                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">CRM Local Sandbox</h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  Drafts follow-ups, records notes &amp; schedule, provides mailto fallback.
-                </p>
-              </div>
-              <div className="mt-3 text-[10px] font-medium text-slate-400">No external key needed</div>
             </div>
           </div>
 
-          {/* Sender Identity Section (Always Visible) */}
+          {/* Sender Identity & Branding */}
           <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
             <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <Mail className="w-4 h-4 text-indigo-600" />
@@ -483,9 +403,6 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
                   placeholder="e.g. info@nexintai.com"
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
                 />
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  The email address clients see and reply to.
-                </p>
               </div>
 
               <div>
@@ -500,182 +417,9 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
                   placeholder="e.g. NexInt AI Technologies"
                   className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                  The sender name that appears in client inboxes.
-                </p>
               </div>
             </div>
           </div>
-
-          {/* Provider Specific Configuration Box */}
-          {provider === 'resend' && (
-            <div className="p-6 rounded-2xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/30 dark:bg-indigo-950/10 space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                    <Key className="w-4 h-4 text-indigo-600" />
-                    Resend API Configuration
-                  </h3>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                    Enter the API key generated in your Resend Dashboard.
-                  </p>
-                </div>
-                <a
-                  href="https://resend.com/api-keys"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  Get Resend Key
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Resend API Key (`re_...`)
-                </label>
-                <div className="relative">
-                  <input
-                    type={showResendKey ? 'text' : 'password'}
-                    value={resendApiKey}
-                    onChange={(e) => setResendApiKey(e.target.value)}
-                    placeholder="re_xxxxxxxxxxxxxxxxxxxx"
-                    className="w-full pl-3.5 pr-10 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowResendKey(!showResendKey)}
-                    className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                  >
-                    {showResendKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Verified Domain Guidance */}
-              <div className="p-3.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-start gap-2.5">
-                <Info className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
-                  <span className="font-bold text-slate-900 dark:text-slate-100">Smart Domain Fallback Built-in: </span>
-                  If your custom domain (`nexintai.com`) is still pending DNS verification in Resend, the system automatically routes the message through Resend&apos;s verified onboarding relay (`onboarding@resend.dev`) while keeping your <span className="font-semibold text-indigo-600 dark:text-indigo-400">reply-to</span> set to `{mailFrom}`.
-                </div>
-              </div>
-            </div>
-          )}
-
-          {provider === 'smtp' && (
-            <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <Server className="w-4 h-4 text-indigo-600" />
-                Custom SMTP Server Credentials
-              </h3>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    SMTP Host *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={smtpHost}
-                    onChange={(e) => setSmtpHost(e.target.value)}
-                    placeholder="e.g. smtp.gmail.com or smtp.zoho.in"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    SMTP Port *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={smtpPort}
-                    onChange={(e) => setSmtpPort(Number(e.target.value))}
-                    placeholder="465 or 587"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    SMTP Username / Email *
-                  </label>
-                  <input
-                    type="text"
-                    value={smtpUser}
-                    onChange={(e) => setSmtpUser(e.target.value)}
-                    placeholder="e.g. your-work-email@company.com"
-                    className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    SMTP Password / App Password *
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showSmtpPass ? 'text' : 'password'}
-                      value={smtpPass}
-                      onChange={(e) => setSmtpPass(e.target.value)}
-                      placeholder="••••••••••••••••"
-                      className="w-full pl-3.5 pr-10 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowSmtpPass(!showSmtpPass)}
-                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                    >
-                      {showSmtpPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {provider === 'brevo' && (
-            <div className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xs space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <Key className="w-4 h-4 text-indigo-600" />
-                  Brevo API Key (`xkeysib-...`)
-                </h3>
-                <a
-                  href="https://app.brevo.com/settings/keys/api"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-                >
-                  Get Brevo Key
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              </div>
-
-              <div className="relative">
-                <input
-                  type={showBrevoKey ? 'text' : 'password'}
-                  value={brevoApiKey}
-                  onChange={(e) => setBrevoApiKey(e.target.value)}
-                  placeholder="xkeysib-xxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="w-full pl-3.5 pr-10 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-mono"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowBrevoKey(!showBrevoKey)}
-                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer"
-                >
-                  {showBrevoKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-          )}
 
           <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-200 dark:border-slate-800">
             <button
@@ -684,7 +428,7 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
               className="inline-flex items-center gap-2 px-6 py-2.5 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-md disabled:opacity-50 cursor-pointer transition-all"
             >
               <CheckCircle2 className="w-4 h-4" />
-              {saving ? 'Saving Changes...' : 'Save & Activate Provider'}
+              {saving ? 'Saving...' : 'Save Configuration'}
             </button>
           </div>
         </form>
@@ -796,9 +540,6 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
                 <Send className="w-4 h-4 text-indigo-600" />
                 Live Inbox Deliverability Test
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Send a real test email through your active provider ({activeProviderName}) to confirm end-to-end delivery before messaging actual clients.
-              </p>
             </div>
 
             <form onSubmit={handleTestEmail} className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -879,9 +620,6 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
                 <History className="w-4 h-4 text-indigo-600" />
                 Dispatched Follow-up History
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                Audit log of automated batch runs and manual follow-up emails sent through the CRM.
-              </p>
             </div>
             <button
               type="button"

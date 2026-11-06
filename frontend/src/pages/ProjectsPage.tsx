@@ -1023,7 +1023,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
           ? `Edit Project Cost — ${costTargetProject?.name || ''}`
           : `Add Vendor Payment / Resource Cost — ${costTargetProject?.name || ''}`
       }
-      subtitle="Add vendor payments (e.g. Purchased AWS) or resource allocation costs. This deducts from the project budget to calculate net profit."
     >
       <form onSubmit={handleSaveCost} className="space-y-4">
         {costFormError && (
@@ -2342,7 +2341,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingProject ? `Edit Project — ${editingProject.name}` : 'Add New Project'}
-        subtitle="Configure project client, service type, schedule, budget, tech stack, and manager."
       >
         <form onSubmit={handleSaveProject} className="space-y-4">
           {formError && (
@@ -2736,7 +2734,6 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         open={amcModalOpen}
         onClose={() => setAmcModalOpen(false)}
         title={amcTargetProject ? `AMC Support — ${amcTargetProject.name}` : 'AMC Support Contract'}
-        subtitle="Manage Annual Maintenance Contract, renewals, SLA tier, and maintenance terms."
         maxWidth="max-w-xl"
       >
         <form onSubmit={handleSaveAmc} className="space-y-4">

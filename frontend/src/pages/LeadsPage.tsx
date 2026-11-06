@@ -889,7 +889,6 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title={editingLead ? `Edit Lead — ${editingLead.name}` : 'Add New Lead'}
-        subtitle="Enter the contact details, interested IT service, and next follow-up date."
       >
         <form onSubmit={handleSaveLead} className="space-y-4">
           {formError && (

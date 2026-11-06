@@ -133,7 +133,6 @@ export const DatabaseModal: React.FC<DatabaseModalProps> = ({
       open={open}
       onClose={onClose}
       title="Backend Database &amp; Data Persistence"
-      subtitle="Manage persistent cloud storage, disk volumes, and 1-click database backup/restore."
       maxWidth="max-w-2xl"
     >
       <div className="space-y-4">
