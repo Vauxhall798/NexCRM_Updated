@@ -24,6 +24,7 @@ model User {
   assigned_tickets  BauTicket[]     @relation("BauTicketAssignee")
   recorded_payments ClientPayment[] @relation("ClientPaymentAuthor")
   sent_emails       EmailLog[]      @relation("EmailLogSender")
+  recorded_expenses Expense[]       @relation("ExpenseAuthor")
 }
 
 model Lead {
@@ -144,6 +145,7 @@ model Project {
   bau_tickets       BauTicket[]
   resource_assignments ResourceAssignment[]
   payments          ClientPayment[]
+  expenses          Expense[]
 }
 
 model TimelineEntry {
@@ -310,6 +312,28 @@ model SystemSetting {
   key        String   @id
   value      String
   updated_at DateTime @updatedAt
+}
+
+model Expense {
+  id              String    @id @default(uuid())
+  title           String
+  category        String    @default("Cloud & Hosting") // Cloud & Hosting, Software & SaaS, Salaries & Freelancers, Office & Rent, Marketing & Ads, Travel & Meals, Legal & Accounting, Hardware & Assets, Miscellaneous
+  amount          Float     @default(0)
+  currency        String    @default("INR")
+  expense_date    DateTime  @default(now())
+  status          String    @default("Paid") // Paid, Pending, Scheduled, Cancelled
+  payment_method  String    @default("Bank Transfer / NEFT") // Bank Transfer / NEFT, Corporate Credit Card, UPI, Net Banking, Cash, Cheque
+  vendor          String    @default("")
+  invoice_number  String    @default("")
+  receipt_url     String    @default("")
+  project_id      String?
+  paid_by         String    @default("")
+  notes           String    @default("")
+  created_by      String?
+  created_at      DateTime  @default(now())
+
+  project         Project?  @relation(fields: [project_id], references: [id], onDelete: SetNull)
+  author          User?     @relation("ExpenseAuthor", fields: [created_by], references: [id], onDelete: SetNull)
 }
 
 

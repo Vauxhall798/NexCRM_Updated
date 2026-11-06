@@ -307,6 +307,27 @@ db.exec(`
     "updated_at" TEXT NOT NULL
   );
 
+  CREATE TABLE IF NOT EXISTS "Expense" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "title" TEXT NOT NULL,
+    "category" TEXT NOT NULL DEFAULT 'Cloud & Hosting',
+    "amount" REAL NOT NULL DEFAULT 0,
+    "currency" TEXT NOT NULL DEFAULT 'INR',
+    "expense_date" TEXT NOT NULL,
+    "status" TEXT NOT NULL DEFAULT 'Paid',
+    "payment_method" TEXT NOT NULL DEFAULT 'Bank Transfer / NEFT',
+    "vendor" TEXT NOT NULL DEFAULT '',
+    "invoice_number" TEXT NOT NULL DEFAULT '',
+    "receipt_url" TEXT NOT NULL DEFAULT '',
+    "project_id" TEXT,
+    "paid_by" TEXT NOT NULL DEFAULT '',
+    "notes" TEXT NOT NULL DEFAULT '',
+    "created_by" TEXT,
+    "created_at" TEXT NOT NULL,
+    FOREIGN KEY ("project_id") REFERENCES "Project"("id") ON DELETE SET NULL,
+    FOREIGN KEY ("created_by") REFERENCES "User"("id") ON DELETE SET NULL
+  );
+
   -- Migrate any legacy non-INR records to INR for Indian IT company standardization
   UPDATE "ProjectCost"
   SET "amount" = "amount" * 10
@@ -482,6 +503,191 @@ try {
   }
 } catch (e) {
   console.warn('ClientPayment initial seed notice:', e);
+}
+
+try {
+  const expenseCount = (db.prepare('SELECT count(*) as c FROM "Expense"').get() as any)?.c || 0;
+  if (expenseCount === 0) {
+    const firstProject = db.prepare('SELECT id FROM "Project" LIMIT 1').get() as any;
+    const projId = firstProject?.id || null;
+    const now = new Date();
+    const dMinus = (days: number) => new Date(now.getTime() - days * 86400000).toISOString();
+    const dPlus = (days: number) => new Date(now.getTime() + days * 86400000).toISOString();
+
+    const insertExp = db.prepare(`
+      INSERT INTO "Expense" (
+        "id", "title", "category", "amount", "currency", "expense_date",
+        "status", "payment_method", "vendor", "invoice_number", "receipt_url",
+        "project_id", "paid_by", "notes", "created_by", "created_at"
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const seeds = [
+      {
+        title: 'AWS Cloud Compute & RDS PostgreSQL Cluster',
+        category: 'Cloud & Hosting',
+        amount: 85000,
+        currency: 'INR',
+        expense_date: dMinus(5),
+        status: 'Paid',
+        payment_method: 'Corporate Credit Card',
+        vendor: 'Amazon Web Services India',
+        invoice_number: 'INV-AWS-2026-10',
+        project_id: projId,
+        paid_by: 'Finance Operations',
+        notes: 'Production & staging infrastructure, auto-scaling compute and backup snapshots.',
+      },
+      {
+        title: 'WeWork Tech Hub Dedicated 20-Seat Office Space',
+        category: 'Office & Rent',
+        amount: 145000,
+        currency: 'INR',
+        expense_date: dMinus(6),
+        status: 'Paid',
+        payment_method: 'Bank Transfer / NEFT',
+        vendor: 'WeWork India Management',
+        invoice_number: 'GST-WW-8921',
+        project_id: null,
+        paid_by: 'CEO Office',
+        notes: 'Monthly corporate tech office rent, 1Gbps dedicated leased line, meeting room credits.',
+      },
+      {
+        title: 'Google Workspace & Google Meet (25 Business Licenses)',
+        category: 'Software & SaaS',
+        amount: 22500,
+        currency: 'INR',
+        expense_date: dMinus(12),
+        status: 'Paid',
+        payment_method: 'Corporate Credit Card',
+        vendor: 'Google Cloud India',
+        invoice_number: 'INV-GSUITE-8812',
+        project_id: null,
+        paid_by: 'IT Admin',
+        notes: 'Corporate email, 2TB Drive per user, Meet enterprise recording licenses.',
+      },
+      {
+        title: 'Freelance Lead React Native Mobile Architect',
+        category: 'Salaries & Freelancers',
+        amount: 60000,
+        currency: 'INR',
+        expense_date: dMinus(15),
+        status: 'Paid',
+        payment_method: 'Bank Transfer / NEFT',
+        vendor: 'Upwork Global Inc / Freelancer',
+        invoice_number: 'UPW-2026-981',
+        project_id: projId,
+        paid_by: 'Engineering Lead',
+        notes: 'Sprint 4 mobile UI architecture and native bridge integration for client delivery.',
+      },
+      {
+        title: 'GitHub Enterprise & Copilot Business Subscriptions',
+        category: 'Software & SaaS',
+        amount: 18400,
+        currency: 'INR',
+        expense_date: dMinus(18),
+        status: 'Paid',
+        payment_method: 'Corporate Credit Card',
+        vendor: 'GitHub Inc',
+        invoice_number: 'GH-2026-90',
+        project_id: null,
+        paid_by: 'DevOps Lead',
+        notes: 'Private repositories, CI/CD Actions runner minutes, and Copilot AI seats.',
+      },
+      {
+        title: 'Corporate Legal & GST Quarterly Audit Retainer',
+        category: 'Legal & Accounting',
+        amount: 35000,
+        currency: 'INR',
+        expense_date: dMinus(22),
+        status: 'Paid',
+        payment_method: 'Bank Transfer / NEFT',
+        vendor: 'Singhania & Partners LLP',
+        invoice_number: 'SP-AUDIT-102',
+        project_id: null,
+        paid_by: 'Finance Operations',
+        notes: 'Quarterly compliance filing, client contract reviews, and statutory tax filing.',
+      },
+      {
+        title: 'Client Strategy Dinner & Meeting with Zenith Logistics CTO',
+        category: 'Travel & Meals',
+        amount: 8200,
+        currency: 'INR',
+        expense_date: dMinus(3),
+        status: 'Paid',
+        payment_method: 'Corporate Credit Card',
+        vendor: 'JW Marriott / Uber Business',
+        invoice_number: 'REC-JW-9921',
+        project_id: projId,
+        paid_by: 'Business Development',
+        notes: 'Contract extension dinner and roadmap discussion with client executive team.',
+      },
+      {
+        title: 'OpenAI & Gemini API Token Usage (Batch AI Pipelines)',
+        category: 'Cloud & Hosting',
+        amount: 28000,
+        currency: 'INR',
+        expense_date: dPlus(3),
+        status: 'Pending',
+        payment_method: 'Corporate Credit Card',
+        vendor: 'OpenAI LLC & Google Cloud',
+        invoice_number: 'INV-AI-2026-11',
+        project_id: null,
+        paid_by: 'AI Platform Team',
+        notes: 'Enterprise LLM tokens consumption for customer proposals & dynamic document synthesis.',
+      },
+      {
+        title: 'LinkedIn Sales Navigator 3 Team Seats',
+        category: 'Marketing & Ads',
+        amount: 16500,
+        currency: 'INR',
+        expense_date: dMinus(25),
+        status: 'Paid',
+        payment_method: 'Corporate Credit Card',
+        vendor: 'LinkedIn Ireland Unlimited',
+        invoice_number: 'LI-SN-4109',
+        project_id: null,
+        paid_by: 'Sales Operations',
+        notes: 'Outreach prospecting and B2B IT decision maker targeting.',
+      },
+      {
+        title: 'Annual Wildcard SSL & Enterprise Cloudflare Protection',
+        category: 'Cloud & Hosting',
+        amount: 12000,
+        currency: 'INR',
+        expense_date: dPlus(10),
+        status: 'Scheduled',
+        payment_method: 'Net Banking',
+        vendor: 'Cloudflare Inc',
+        invoice_number: 'CF-DOM-1102',
+        project_id: null,
+        paid_by: 'Security Admin',
+        notes: 'Domain security certificate renewals and DDoS protection shield.',
+      },
+    ];
+
+    for (const s of seeds) {
+      insertExp.run(
+        crypto.randomUUID(),
+        s.title,
+        s.category,
+        s.amount,
+        s.currency,
+        s.expense_date,
+        s.status,
+        s.payment_method,
+        s.vendor,
+        s.invoice_number,
+        '',
+        null,
+        s.paid_by,
+        s.notes,
+        null,
+        s.expense_date
+      );
+    }
+  }
+} catch (e) {
+  console.warn('Expense initial seed notice:', e);
 }
 
 try {
@@ -883,6 +1089,24 @@ function hydrateRelations(table: string, row: any, include?: Record<string, any>
         : null;
       result.author = u ? applySelect(u, include.author.select) : null;
     }
+  } else if (table === 'Expense') {
+    if (include.project) {
+      const pRaw = row.project_id
+        ? (db.prepare(`SELECT * FROM "Project" WHERE id = ?`).get(row.project_id) as any)
+        : null;
+      if (pRaw) {
+        const p = { ...pRaw, progress_override: Boolean(pRaw.progress_override) };
+        result.project = include.project.select ? applySelect(p, include.project.select) : p;
+      } else {
+        result.project = null;
+      }
+    }
+    if (include.author) {
+      const u = row.created_by
+        ? (db.prepare(`SELECT * FROM "User" WHERE id = ?`).get(row.created_by) as any)
+        : null;
+      result.author = u ? applySelect(u, include.author.select) : null;
+    }
   }
 
   return result;
@@ -1162,6 +1386,22 @@ export const prisma = {
     invoice_number: '',
     payment_method: 'Bank Transfer / NEFT',
     transaction_ref: '',
+    notes: '',
+    created_by: null,
+    created_at: toIso(new Date()),
+  })),
+  expense: createModelDelegate('Expense', () => ({
+    category: 'Cloud & Hosting',
+    amount: 0,
+    currency: 'INR',
+    expense_date: toIso(new Date()),
+    status: 'Paid',
+    payment_method: 'Bank Transfer / NEFT',
+    vendor: '',
+    invoice_number: '',
+    receipt_url: '',
+    project_id: null,
+    paid_by: '',
     notes: '',
     created_by: null,
     created_at: toIso(new Date()),

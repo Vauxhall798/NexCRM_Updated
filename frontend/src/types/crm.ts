@@ -617,11 +617,65 @@ export type NavTab =
   | 'client_payments'
   | 'projects'
   | 'revenue'
+  | 'expenses'
   | 'timeline'
   | 'resources'
   | 'feedback'
   | 'bau'
   | 'auto_email';
+
+export type ExpenseCategory =
+  | 'Cloud & Hosting'
+  | 'Software & SaaS'
+  | 'Salaries & Freelancers'
+  | 'Office & Rent'
+  | 'Marketing & Ads'
+  | 'Travel & Meals'
+  | 'Legal & Accounting'
+  | 'Hardware & Assets'
+  | 'Miscellaneous';
+
+export type ExpenseStatus = 'Paid' | 'Pending' | 'Scheduled' | 'Cancelled';
+
+export type ExpensePaymentMethod =
+  | 'Bank Transfer / NEFT'
+  | 'Corporate Credit Card'
+  | 'UPI'
+  | 'Net Banking'
+  | 'Cash'
+  | 'Cheque';
+
+export interface Expense {
+  id: string;
+  title: string;
+  category: ExpenseCategory;
+  amount: number;
+  currency: string;
+  expense_date: string;
+  status: ExpenseStatus;
+  payment_method: ExpensePaymentMethod;
+  vendor: string;
+  invoice_number: string;
+  receipt_url: string;
+  project_id: string | null;
+  paid_by: string;
+  notes: string;
+  created_by: string | null;
+  created_at: string;
+  project?: { id: string; name: string; currency?: string } | null;
+  author?: { id: string; name: string } | null;
+}
+
+export interface ExpenseSummary {
+  total_expenses: number;
+  total_paid: number;
+  total_pending: number;
+  total_scheduled: number;
+  overhead_total: number;
+  project_linked_total: number;
+  category_breakdown: Record<string, number>;
+  top_category: { category: string; amount: number } | null;
+}
 
 export interface AutoEmailSettings {
   preferred_provider: 'resend' | 'brevo' | 'smtp' | 'simulated';

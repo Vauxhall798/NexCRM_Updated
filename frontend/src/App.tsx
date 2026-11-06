@@ -23,6 +23,7 @@ import {
   CreditCard,
   Database,
   Mail,
+  Receipt,
 } from 'lucide-react';
 import { apiFetch, getToken, setToken } from './lib/api';
 import { NavTab, User } from './types/crm';
@@ -37,6 +38,7 @@ import { ClientsPage } from './pages/ClientsPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { RevenuePage } from './pages/RevenuePage';
 import { ClientPaymentsPage } from './pages/ClientPaymentsPage';
+import { ExpensesPage } from './pages/ExpensesPage';
 import { TimelinePage } from './pages/TimelinePage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { FeedbackPage } from './pages/FeedbackPage';
@@ -99,6 +101,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Client Payments',
     group: 'Delivery & Resources',
     icon: CreditCard,
+  },
+  {
+    id: 'expenses',
+    label: 'Expenses',
+    group: 'Delivery & Resources',
+    icon: Receipt,
   },
   {
     id: 'revenue',
@@ -660,6 +668,9 @@ export const App: React.FC = () => {
                 onClearInitialId={() => setContextId(null)}
                 onNavigate={handleNavigate}
               />
+            )}
+            {activeTab === 'expenses' && (
+              <ExpensesPage users={users} onNavigate={handleNavigate} />
             )}
             {activeTab === 'revenue' && <RevenuePage onNavigate={handleNavigate} />}
             {activeTab === 'timeline' && (
