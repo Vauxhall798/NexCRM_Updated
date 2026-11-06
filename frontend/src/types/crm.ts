@@ -604,7 +604,28 @@ export type NavTab =
   | 'timeline'
   | 'resources'
   | 'feedback'
-  | 'bau';
+  | 'bau'
+  | 'auto_email';
+
+export interface AutoEmailSettings {
+  preferred_provider: 'resend' | 'brevo' | 'smtp' | 'simulated';
+  active_provider: string;
+  resend_api_key?: string;
+  brevo_api_key?: string;
+  smtp_host?: string;
+  smtp_port?: number;
+  smtp_user?: string;
+  smtp_pass?: string;
+  mail_from?: string;
+  from_name?: string;
+  default_followup_interval_days: number;
+  auto_advance_status: boolean;
+  auto_log_note: boolean;
+  note_author_name: string;
+  ai_generator_status?: string;
+  smtp_configured?: boolean;
+  resend_configured?: boolean;
+}
 
 export type FollowupTemplateType =
   | 'proposal_checkin'

@@ -26,6 +26,7 @@ const ALL_TABLES = [
   'Proposal',
   'ClientPayment',
   'EmailLog',
+  'SystemSetting',
 ] as const;
 
 // Get Database Storage Health & Status

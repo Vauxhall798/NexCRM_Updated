@@ -1,5 +1,7 @@
 import { Router } from '../lib/http-app.ts';
 import type { Response } from '../lib/http-app.ts';
+import fs from 'node:fs';
+import path from 'node:path';
 import { requireAuth } from '../middleware/auth.ts';
 import type { AuthRequest } from '../middleware/auth.ts';
 import { prisma } from '../lib/prisma.ts';
@@ -9,6 +11,7 @@ import {
   runAutomatedFollowupBatch,
 } from '../lib/followup-engine.ts';
 import type { FollowupTemplateType } from '../lib/followup-engine.ts';
+import { sendCrmEmail } from '../lib/mailer.ts';
 
 export const automationRouter = Router();
 automationRouter.use(requireAuth);
@@ -152,31 +155,194 @@ automationRouter.get('/logs', async (_req: AuthRequest, res: Response) => {
   }
 });
 
+function syncEnvFiles(updates: Array<{ key: string; value: string }>) {
+  try {
+    const cwd = process.cwd();
+    const envPaths = [
+      path.resolve(cwd, '.env'),
+      path.resolve(cwd, 'backend/.env'),
+      path.resolve(cwd, '../.env'),
+    ];
+    for (const p of envPaths) {
+      if (!fs.existsSync(p)) continue;
+      let content = fs.readFileSync(p, 'utf8');
+      for (const { key, value } of updates) {
+        const regex = new RegExp(`^${key}=.*$`, 'm');
+        const formatted = `${key}="${value}"`;
+        if (regex.test(content)) {
+          content = content.replace(regex, formatted);
+        } else {
+          content += `\n${formatted}`;
+        }
+      }
+      fs.writeFileSync(p, content, 'utf8');
+    }
+  } catch (e) {
+    console.warn('Notice: Could not sync .env file to disk:', e);
+  }
+}
+
 // GET /api/automation/settings — Get current email provider & automation status
 automationRouter.get('/settings', async (_req: AuthRequest, res: Response) => {
   try {
-    const smtpHost = process.env.SMTP_HOST || '';
-    const resendKey = process.env.RESEND_API_KEY ? 'Configured (Active)' : '';
-    const brevoKey = process.env.BREVO_API_KEY ? 'Configured (Active)' : '';
-    const geminiKey = process.env.GEMINI_ARGON_API_KEY || process.env.GEMINI_API_KEY ? 'Configured (Active)' : '';
+    const dbSettings = await prisma.systemSetting.findMany();
+    const map: Record<string, string> = {};
+    for (const s of dbSettings) {
+      map[s.key] = s.value;
+    }
 
-    let activeProvider = 'CRM Local / Simulated (Ready)';
-    if (resendKey) activeProvider = 'Resend Cloud API';
-    else if (brevoKey) activeProvider = 'Brevo Cloud API';
-    else if (smtpHost) activeProvider = `SMTP Server (${smtpHost})`;
+    const resendKey = map['RESEND_API_KEY'] ?? process.env.RESEND_API_KEY ?? '';
+    const brevoKey = map['BREVO_API_KEY'] ?? process.env.BREVO_API_KEY ?? '';
+    const smtpHost = map['SMTP_HOST'] ?? process.env.SMTP_HOST ?? '';
+    const smtpPort = Number(map['SMTP_PORT'] ?? process.env.SMTP_PORT ?? 587);
+    const smtpUser = map['SMTP_USER'] ?? process.env.SMTP_USER ?? '';
+    const smtpPass = map['SMTP_PASS'] ?? process.env.SMTP_PASS ?? '';
+    const mailFrom = map['MAIL_FROM'] ?? process.env.MAIL_FROM ?? 'info@nexintai.com';
+    const fromName = map['MAIL_FROM_NAME'] ?? process.env.MAIL_FROM_NAME ?? 'NexInt AI CRM';
+    const defaultInterval = Number(map['DEFAULT_FOLLOWUP_DAYS'] ?? 4);
+    const autoAdvance = (map['AUTO_ADVANCE_SCHEDULE'] ?? 'true') !== 'false';
+    const autoLogNote = (map['AUTO_LOG_NOTE'] ?? 'true') !== 'false';
+    const noteAuthor = map['NOTE_AUTHOR_NAME'] ?? 'login 1';
+    const selectedProvider =
+      map['PREFERRED_PROVIDER'] ??
+      (resendKey ? 'resend' : brevoKey ? 'brevo' : smtpHost ? 'smtp' : 'simulated');
+
+    let activeProviderDisplay = 'CRM Local / Simulated (Ready)';
+    if (selectedProvider === 'resend' || (!selectedProvider && resendKey)) {
+      activeProviderDisplay = 'Resend Cloud API';
+    } else if (selectedProvider === 'brevo' || (!selectedProvider && brevoKey)) {
+      activeProviderDisplay = 'Brevo Cloud API';
+    } else if (selectedProvider === 'smtp' || (!selectedProvider && smtpHost)) {
+      activeProviderDisplay = `SMTP Server (${smtpHost || 'Custom'})`;
+    }
+
+    const geminiKey = process.env.GEMINI_ARGON_API_KEY || process.env.GEMINI_API_KEY ? 'Configured (Active)' : '';
 
     res.json({
       settings: {
-        active_provider: activeProvider,
+        preferred_provider: selectedProvider,
+        active_provider: activeProviderDisplay,
+        resend_api_key: resendKey,
+        brevo_api_key: brevoKey,
+        smtp_host: smtpHost,
+        smtp_port: smtpPort,
+        smtp_user: smtpUser,
+        smtp_pass: smtpPass,
+        mail_from: mailFrom,
+        from_name: fromName,
+        default_followup_interval_days: defaultInterval,
+        auto_advance_status: autoAdvance,
+        auto_log_note: autoLogNote,
+        note_author_name: noteAuthor,
         ai_generator_status: geminiKey || 'Built-in Template Synthesizer (Active)',
         smtp_configured: Boolean(smtpHost),
-        resend_configured: Boolean(process.env.RESEND_API_KEY),
-        default_followup_interval_days: 4,
-        auto_advance_status: true,
+        resend_configured: Boolean(resendKey),
       },
     });
   } catch (err) {
     console.error('Error fetching automation settings:', err);
     res.status(500).json({ error: 'Failed to fetch automation settings' });
+  }
+});
+
+// POST /api/automation/settings — Update email provider credentials & automation options
+automationRouter.post('/settings', async (req: AuthRequest, res: Response) => {
+  try {
+    const body = (req.body || {}) as Record<string, any>;
+    const updates: Array<{ key: string; value: string }> = [];
+
+    const keysToSave = [
+      'preferred_provider',
+      'resend_api_key',
+      'brevo_api_key',
+      'smtp_host',
+      'smtp_port',
+      'smtp_user',
+      'smtp_pass',
+      'mail_from',
+      'from_name',
+      'default_followup_interval_days',
+      'auto_advance_status',
+      'auto_log_note',
+      'note_author_name',
+    ];
+
+    const mapping: Record<string, string> = {
+      preferred_provider: 'PREFERRED_PROVIDER',
+      resend_api_key: 'RESEND_API_KEY',
+      brevo_api_key: 'BREVO_API_KEY',
+      smtp_host: 'SMTP_HOST',
+      smtp_port: 'SMTP_PORT',
+      smtp_user: 'SMTP_USER',
+      smtp_pass: 'SMTP_PASS',
+      mail_from: 'MAIL_FROM',
+      from_name: 'MAIL_FROM_NAME',
+      default_followup_interval_days: 'DEFAULT_FOLLOWUP_DAYS',
+      auto_advance_status: 'AUTO_ADVANCE_SCHEDULE',
+      auto_log_note: 'AUTO_LOG_NOTE',
+      note_author_name: 'NOTE_AUTHOR_NAME',
+    };
+
+    for (const key of keysToSave) {
+      if (body[key] !== undefined) {
+        const envKey = mapping[key];
+        const val = String(body[key]).trim();
+        updates.push({ key: envKey, value: val });
+        process.env[envKey] = val;
+      }
+    }
+
+    for (const item of updates) {
+      await prisma.systemSetting.upsert({
+        where: { key: item.key },
+        create: { key: item.key, value: item.value },
+        update: { value: item.value },
+      });
+    }
+
+    syncEnvFiles(updates);
+
+    res.json({ success: true, message: 'Auto Email configuration updated successfully' });
+  } catch (err) {
+    console.error('Error saving email settings:', err);
+    res.status(500).json({ error: 'Failed to save email settings' });
+  }
+});
+
+// POST /api/automation/test-email — Dispatch a live diagnostic test email
+automationRouter.post('/test-email', async (req: AuthRequest, res: Response) => {
+  try {
+    const { recipient } = req.body as { recipient?: string };
+    if (!recipient || !recipient.includes('@')) {
+      res.status(400).json({ error: 'Valid recipient email address is required' });
+      return;
+    }
+
+    const start = Date.now();
+    const result = await sendCrmEmail({
+      to: recipient.trim(),
+      toName: 'NexCRM Admin',
+      subject: `NexCRM Auto Email Verification — ${new Date().toLocaleTimeString('en-US')}`,
+      text: `Hello,\n\nThis is a verification test from your NexCRM Auto Email Configuration panel.\n\n` +
+            `Timestamp: ${new Date().toISOString()}\n` +
+            `Sender: ${process.env.MAIL_FROM || 'info@nexintai.com'}\n` +
+            `Active Transport: Resend / SMTP / CRM Mailer\n\n` +
+            `If you received this message, your CRM email pipeline is completely configured and ready for automated lead check-ins!\n\n` +
+            `Warm regards,\nNexInt AI Automation Engine`,
+    });
+    const latencyMs = Date.now() - start;
+
+    res.json({
+      success: result.success,
+      status: result.status,
+      provider: result.provider,
+      messageId: result.messageId,
+      error: result.error,
+      latencyMs,
+      mailtoUrl: result.mailtoUrl,
+    });
+  } catch (err: any) {
+    console.error('Error sending test email:', err);
+    res.status(500).json({ error: err?.message || 'Failed to dispatch test email' });
   }
 });

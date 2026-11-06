@@ -22,6 +22,7 @@ import {
   DollarSign,
   CreditCard,
   Database,
+  Mail,
 } from 'lucide-react';
 import { apiFetch, getToken, setToken } from './lib/api';
 import { NavTab, User } from './types/crm';
@@ -40,6 +41,7 @@ import { TimelinePage } from './pages/TimelinePage';
 import { ResourcesPage } from './pages/ResourcesPage';
 import { FeedbackPage } from './pages/FeedbackPage';
 import { BauPage } from './pages/BauPage';
+import { AutoEmailPage } from './pages/AutoEmailPage';
 import { DatabaseModal } from './components/DatabaseModal';
 
 interface NavItem {
@@ -73,6 +75,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'AI Proposals',
     group: 'Overview & Pipeline',
     icon: Sparkles,
+  },
+  {
+    id: 'auto_email',
+    label: 'Auto Email Configuration',
+    group: 'Overview & Pipeline',
+    icon: Mail,
   },
   {
     id: 'clients',
@@ -626,6 +634,9 @@ export const App: React.FC = () => {
             )}
             {activeTab === 'proposals' && (
               <ProposalsPage onNavigate={handleNavigate} />
+            )}
+            {activeTab === 'auto_email' && (
+              <AutoEmailPage onNavigate={handleNavigate} />
             )}
             {activeTab === 'clients' && (
               <ClientsPage

@@ -297,5 +297,11 @@ model EmailLog {
   sender          User?    @relation("EmailLogSender", fields: [sent_by], references: [id], onDelete: SetNull)
 }
 
+model SystemSetting {
+  key        String   @id
+  value      String
+  updated_at DateTime @updatedAt
+}
+
 
 

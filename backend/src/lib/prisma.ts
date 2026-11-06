@@ -292,6 +292,12 @@ db.exec(`
     FOREIGN KEY ("sent_by") REFERENCES "User"("id") ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS "SystemSetting" (
+    "key" TEXT NOT NULL PRIMARY KEY,
+    "value" TEXT NOT NULL,
+    "updated_at" TEXT NOT NULL
+  );
+
   -- Migrate any legacy non-INR records to INR for Indian IT company standardization
   UPDATE "ProjectCost"
   SET "amount" = "amount" * 10
@@ -1102,6 +1108,33 @@ export const prisma = {
     sent_by: null,
     sent_at: toIso(new Date()),
   })),
+  systemSetting: {
+    findUnique: async ({ where }: { where: { key: string } }) => {
+      const row = db.prepare('SELECT * FROM "SystemSetting" WHERE "key" = ?').get(where.key) as any;
+      return row || null;
+    },
+    findMany: async () => {
+      return db.prepare('SELECT * FROM "SystemSetting"').all() as any[];
+    },
+    upsert: async ({ where, create, update }: { where: { key: string }; create: any; update: any }) => {
+      const existing = db.prepare('SELECT "key" FROM "SystemSetting" WHERE "key" = ?').get(where.key);
+      const now = new Date().toISOString();
+      if (existing) {
+        db.prepare('UPDATE "SystemSetting" SET "value" = ?, "updated_at" = ? WHERE "key" = ?').run(
+          update.value,
+          now,
+          where.key
+        );
+      } else {
+        db.prepare('INSERT INTO "SystemSetting" ("key", "value", "updated_at") VALUES (?, ?, ?)').run(
+          create.key,
+          create.value,
+          now
+        );
+      }
+      return { key: where.key, value: update.value ?? create.value, updated_at: now };
+    },
+  },
   async $transaction(promises: Promise<any>[]): Promise<any[]> {
     return Promise.all(promises);
   },

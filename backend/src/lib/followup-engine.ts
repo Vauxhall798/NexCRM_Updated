@@ -251,10 +251,11 @@ export async function executeFollowupEmail(params: {
     },
   });
 
-  // 4. Advance next_followup date if provided (or default +4 days)
+  // 4. Advance next_followup date if provided (or configured default days)
+  const defaultIntervalDays = Number(process.env.DEFAULT_FOLLOWUP_DAYS || 4);
   const nextDate = params.nextFollowupDate
     ? new Date(params.nextFollowupDate).toISOString()
-    : new Date(Date.now() + 4 * 86400000).toISOString();
+    : new Date(Date.now() + defaultIntervalDays * 86400000).toISOString();
 
   await prisma.lead.update({
     where: { id: lead.id },
