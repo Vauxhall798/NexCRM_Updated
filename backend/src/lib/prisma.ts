@@ -451,6 +451,81 @@ db.exec(`
       "role" = 'ADMIN',
       "password_hash" = 'scrypt$a1b2c3d4e5f678901234567890abcdef$66322d0118f4c63498721b960989d4727f69466a1235484eec1028cc7f8ae4d42376122a3cc95ca4656d21db33a7f6c91ac13683bddc12e3b33af45c11221326'
   WHERE "email" = 'vishaal351@gmail.com';
+
+  -- Seed Executive Resource: Vivek Mohandass (CEO)
+  INSERT OR IGNORE INTO "Resource" ("id", "name", "email", "role_title", "department", "seniority", "skills", "total_capacity", "hourly_rate", "on_leave", "notes", "created_at")
+  VALUES (
+    'resource-vivek-ceo-id',
+    'Vivek Mohandass',
+    'vinuvivek1@gmail.com',
+    'CEO',
+    'Executive Leadership',
+    'Executive',
+    'Corporate Strategy, P&L Leadership, Venture Growth, Global Delivery',
+    100,
+    5000,
+    0,
+    'Chief Executive Officer (CEO) of NexInt AI Technologies',
+    '2026-11-01T00:00:00.000Z'
+  );
+
+  UPDATE "Resource"
+  SET "name" = 'Vivek Mohandass',
+      "role_title" = 'CEO',
+      "department" = 'Executive Leadership',
+      "seniority" = 'Executive',
+      "skills" = 'Corporate Strategy, P&L Leadership, Venture Growth, Global Delivery'
+  WHERE "email" = 'vinuvivek1@gmail.com';
+
+  -- Seed Executive Resource: Glanee Rose (CMO)
+  INSERT OR IGNORE INTO "Resource" ("id", "name", "email", "role_title", "department", "seniority", "skills", "total_capacity", "hourly_rate", "on_leave", "notes", "created_at")
+  VALUES (
+    'resource-glanee-cmo-id',
+    'Glanee Rose',
+    'glenysimon@gmail.com',
+    'CMO',
+    'Executive Leadership',
+    'Executive',
+    'Brand Positioning, B2B Growth Marketing, Client Acquisition, GTM Execution',
+    100,
+    4500,
+    0,
+    'Chief Marketing Officer (CMO) of NexInt AI Technologies',
+    '2026-11-01T00:00:00.000Z'
+  );
+
+  UPDATE "Resource"
+  SET "name" = 'Glanee Rose',
+      "role_title" = 'CMO',
+      "department" = 'Executive Leadership',
+      "seniority" = 'Executive',
+      "skills" = 'Brand Positioning, B2B Growth Marketing, Client Acquisition, GTM Execution'
+  WHERE "email" = 'glenysimon@gmail.com';
+
+  -- Seed Executive Resource: Vishaal Arun (CTO)
+  INSERT OR IGNORE INTO "Resource" ("id", "name", "email", "role_title", "department", "seniority", "skills", "total_capacity", "hourly_rate", "on_leave", "notes", "created_at")
+  VALUES (
+    'resource-vishaal-cto-id',
+    'Vishaal Arun',
+    'vishaal351@gmail.com',
+    'CTO',
+    'Executive Leadership',
+    'Executive',
+    'AI Architecture, Cloud Infrastructure, Engineering Leadership, System Scalability',
+    100,
+    5000,
+    0,
+    'Chief Technology Officer (CTO) of NexInt AI Technologies',
+    '2026-11-01T00:00:00.000Z'
+  );
+
+  UPDATE "Resource"
+  SET "name" = 'Vishaal Arun',
+      "role_title" = 'CTO',
+      "department" = 'Executive Leadership',
+      "seniority" = 'Executive',
+      "skills" = 'AI Architecture, Cloud Infrastructure, Engineering Leadership, System Scalability'
+  WHERE "email" = 'vishaal351@gmail.com';
 `);
 
 // Migrate AMC columns for Project table if not already present

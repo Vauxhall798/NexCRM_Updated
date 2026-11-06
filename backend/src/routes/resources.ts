@@ -9,6 +9,7 @@ export const resourcesRouter = Router();
 resourcesRouter.use(requireAuth);
 
 export const RESOURCE_DEPARTMENTS = [
+  'Executive Leadership',
   'Engineering',
   'Cloud & DevOps',
   'AI & Data',
@@ -17,6 +18,7 @@ export const RESOURCE_DEPARTMENTS = [
 ] as const;
 
 export const RESOURCE_SENIORITIES = [
+  'Executive',
   'Principal',
   'Senior',
   'Mid-Level',

@@ -402,6 +402,7 @@ export function getBauPriorityBadge(priority: string): string {
 }
 
 export const RESOURCE_DEPARTMENTS: ResourceDepartment[] = [
+  'Executive Leadership',
   'Engineering',
   'Cloud & DevOps',
   'AI & Data',
@@ -410,6 +411,7 @@ export const RESOURCE_DEPARTMENTS: ResourceDepartment[] = [
 ];
 
 export const RESOURCE_SENIORITIES: ResourceSeniority[] = [
+  'Executive',
   'Principal',
   'Senior',
   'Mid-Level',

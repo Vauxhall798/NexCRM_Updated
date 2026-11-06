@@ -351,13 +351,14 @@ export interface BauSummary {
 }
 
 export type ResourceDepartment =
+  | 'Executive Leadership'
   | 'Engineering'
   | 'Cloud & DevOps'
   | 'AI & Data'
   | 'Design & UX'
   | 'Delivery & QA';
 
-export type ResourceSeniority = 'Principal' | 'Senior' | 'Mid-Level' | 'Junior';
+export type ResourceSeniority = 'Executive' | 'Principal' | 'Senior' | 'Mid-Level' | 'Junior';
 
 export type ResourceAvailabilityStatus =
   | 'Available'
