@@ -165,6 +165,10 @@ export interface ProjectCost {
   author?: { id: string; name: string } | null;
 }
 
+export type AmcStatus = 'Not Contracted' | 'Active' | 'Pending Renewal' | 'Expired';
+export type AmcBillingCycle = 'Annual' | 'Semi-Annual' | 'Quarterly' | 'Monthly';
+export type AmcSlaTier = 'Standard 9x5' | '24/7 Mission Critical' | 'Basic Support';
+
 export interface Project {
   id: string;
   client_id: string;
@@ -191,6 +195,18 @@ export interface Project {
   resource_cost?: number;
   profit?: number;
   profit_margin_pct?: number;
+  amc_active?: boolean;
+  amc_status?: AmcStatus;
+  amc_amount?: number;
+  amc_start_date?: string | null;
+  amc_end_date?: string | null;
+  amc_billing_cycle?: AmcBillingCycle;
+  amc_sla_tier?: AmcSlaTier;
+  amc_scope?: string;
+  amc_contact?: string;
+  amc_days_remaining?: number | null;
+  amc_is_expiring_soon?: boolean;
+  amc_is_expired?: boolean;
 }
 
 export type TimelineType =

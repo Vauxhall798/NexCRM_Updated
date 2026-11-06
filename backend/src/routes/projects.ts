@@ -40,6 +40,20 @@ function enrichProjectFinancials(project: any) {
   const profit = budget - total_cost;
   const profit_margin_pct = budget > 0 ? Math.round((profit / budget) * 1000) / 10 : 0;
 
+  // AMC metrics
+  const amc_active = Boolean(project.amc_active);
+  let amc_days_remaining: number | null = null;
+  let amc_is_expiring_soon = false;
+  let amc_is_expired = false;
+
+  if (project.amc_end_date) {
+    const endMs = new Date(project.amc_end_date).getTime();
+    const diffMs = endMs - Date.now();
+    amc_days_remaining = Math.ceil(diffMs / 86400000);
+    amc_is_expired = amc_days_remaining < 0;
+    amc_is_expiring_soon = amc_days_remaining >= 0 && amc_days_remaining <= 45;
+  }
+
   return {
     ...project,
     project_costs: costs,
@@ -48,6 +62,10 @@ function enrichProjectFinancials(project: any) {
     resource_cost,
     profit,
     profit_margin_pct,
+    amc_active,
+    amc_days_remaining,
+    amc_is_expiring_soon,
+    amc_is_expired,
   };
 }
 
@@ -75,6 +93,15 @@ const projectInputSchema = z.object({
   progress: z.coerce.number().min(0).max(100).default(0),
   progress_override: z.boolean().optional().default(false),
   notes: z.string().optional().default(''),
+  amc_active: z.boolean().optional().default(false),
+  amc_status: z.string().optional().default('Not Contracted'),
+  amc_amount: z.coerce.number().min(0).optional().default(0),
+  amc_start_date: z.string().nullable().optional(),
+  amc_end_date: z.string().nullable().optional(),
+  amc_billing_cycle: z.string().optional().default('Annual'),
+  amc_sla_tier: z.string().optional().default('Standard 9x5'),
+  amc_scope: z.string().optional().default(''),
+  amc_contact: z.string().optional().default(''),
 });
 
 const standardProjectInclude = {
@@ -186,6 +213,15 @@ projectsRouter.post('/', async (req: AuthRequest, res: Response) => {
       progress: data.progress,
       progress_override: data.progress_override ?? false,
       notes: data.notes?.trim() || '',
+      amc_active: Boolean(data.amc_active),
+      amc_status: data.amc_status || (data.amc_active ? 'Active' : 'Not Contracted'),
+      amc_amount: data.amc_amount || 0,
+      amc_start_date: data.amc_start_date ? new Date(data.amc_start_date) : null,
+      amc_end_date: data.amc_end_date ? new Date(data.amc_end_date) : null,
+      amc_billing_cycle: data.amc_billing_cycle || 'Annual',
+      amc_sla_tier: data.amc_sla_tier || 'Standard 9x5',
+      amc_scope: data.amc_scope?.trim() || '',
+      amc_contact: data.amc_contact?.trim() || '',
     },
     include: standardProjectInclude,
   });
@@ -231,6 +267,59 @@ projectsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
         ? { progress_override: data.progress_override }
         : {}),
       ...(data.notes !== undefined ? { notes: data.notes.trim() } : {}),
+      ...(data.amc_active !== undefined ? { amc_active: Boolean(data.amc_active) } : {}),
+      ...(data.amc_status !== undefined ? { amc_status: data.amc_status } : {}),
+      ...(data.amc_amount !== undefined ? { amc_amount: data.amc_amount } : {}),
+      ...(data.amc_start_date !== undefined
+        ? { amc_start_date: data.amc_start_date ? new Date(data.amc_start_date) : null }
+        : {}),
+      ...(data.amc_end_date !== undefined
+        ? { amc_end_date: data.amc_end_date ? new Date(data.amc_end_date) : null }
+        : {}),
+      ...(data.amc_billing_cycle !== undefined ? { amc_billing_cycle: data.amc_billing_cycle } : {}),
+      ...(data.amc_sla_tier !== undefined ? { amc_sla_tier: data.amc_sla_tier } : {}),
+      ...(data.amc_scope !== undefined ? { amc_scope: data.amc_scope.trim() } : {}),
+      ...(data.amc_contact !== undefined ? { amc_contact: data.amc_contact.trim() } : {}),
+    },
+    include: standardProjectInclude,
+  });
+
+  res.json({ project: enrichProjectFinancials(updated) });
+});
+
+// PUT /api/projects/:id/amc — Fast update or renewal of Annual Maintenance Contract (AMC)
+projectsRouter.put('/:id/amc', async (req: AuthRequest, res: Response) => {
+  const id = String(req.params.id);
+  const existing = await prisma.project.findUnique({ where: { id } });
+  if (!existing) {
+    res.status(404).json({ error: 'Project not found' });
+    return;
+  }
+
+  const {
+    amc_active = true,
+    amc_status = 'Active',
+    amc_amount = 0,
+    amc_start_date,
+    amc_end_date,
+    amc_billing_cycle = 'Annual',
+    amc_sla_tier = 'Standard 9x5',
+    amc_scope = '',
+    amc_contact = '',
+  } = req.body;
+
+  const updated = await prisma.project.update({
+    where: { id },
+    data: {
+      amc_active: Boolean(amc_active),
+      amc_status,
+      amc_amount: Number(amc_amount || 0),
+      amc_start_date: amc_start_date ? new Date(amc_start_date) : null,
+      amc_end_date: amc_end_date ? new Date(amc_end_date) : null,
+      amc_billing_cycle,
+      amc_sla_tier,
+      amc_scope: String(amc_scope || '').trim(),
+      amc_contact: String(amc_contact || '').trim(),
     },
     include: standardProjectInclude,
   });

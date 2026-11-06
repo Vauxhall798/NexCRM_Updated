@@ -126,6 +126,15 @@ model Project {
   progress          Int             @default(0)  // 0-100
   progress_override Boolean         @default(false)
   notes             String          @default("")
+  amc_active        Boolean         @default(false)
+  amc_status        String          @default("Not Contracted") // Not Contracted, Active, Pending Renewal, Expired
+  amc_amount        Float           @default(0)
+  amc_start_date    DateTime?
+  amc_end_date      DateTime?
+  amc_billing_cycle String          @default("Annual") // Annual, Semi-Annual, Quarterly, Monthly
+  amc_sla_tier      String          @default("Standard 9x5") // Standard 9x5, 24/7 Mission Critical, Basic Support
+  amc_scope         String          @default("")
+  amc_contact       String          @default("")
   created_at        DateTime        @default(now())
 
   client            Client          @relation(fields: [client_id], references: [id], onDelete: Cascade)

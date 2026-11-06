@@ -117,6 +117,15 @@ db.exec(`
     "progress" INTEGER NOT NULL DEFAULT 0,
     "progress_override" INTEGER NOT NULL DEFAULT 0,
     "notes" TEXT NOT NULL DEFAULT '',
+    "amc_active" INTEGER NOT NULL DEFAULT 0,
+    "amc_status" TEXT NOT NULL DEFAULT 'Not Contracted',
+    "amc_amount" REAL NOT NULL DEFAULT 0,
+    "amc_start_date" TEXT,
+    "amc_end_date" TEXT,
+    "amc_billing_cycle" TEXT NOT NULL DEFAULT 'Annual',
+    "amc_sla_tier" TEXT NOT NULL DEFAULT 'Standard 9x5',
+    "amc_scope" TEXT NOT NULL DEFAULT '',
+    "amc_contact" TEXT NOT NULL DEFAULT '',
     "created_at" TEXT NOT NULL,
     FOREIGN KEY ("client_id") REFERENCES "Client"("id") ON DELETE CASCADE,
     FOREIGN KEY ("manager_id") REFERENCES "User"("id") ON DELETE SET NULL
@@ -371,6 +380,55 @@ db.exec(`
       "role" = 'ADMIN'
   WHERE "email" = 'admin@nexcrm.io';
 `);
+
+// Migrate AMC columns for Project table if not already present
+const amcCols = [
+  'ALTER TABLE "Project" ADD COLUMN "amc_active" INTEGER NOT NULL DEFAULT 0;',
+  'ALTER TABLE "Project" ADD COLUMN "amc_status" TEXT NOT NULL DEFAULT \'Not Contracted\';',
+  'ALTER TABLE "Project" ADD COLUMN "amc_amount" REAL NOT NULL DEFAULT 0;',
+  'ALTER TABLE "Project" ADD COLUMN "amc_start_date" TEXT;',
+  'ALTER TABLE "Project" ADD COLUMN "amc_end_date" TEXT;',
+  'ALTER TABLE "Project" ADD COLUMN "amc_billing_cycle" TEXT NOT NULL DEFAULT \'Annual\';',
+  'ALTER TABLE "Project" ADD COLUMN "amc_sla_tier" TEXT NOT NULL DEFAULT \'Standard 9x5\';',
+  'ALTER TABLE "Project" ADD COLUMN "amc_scope" TEXT NOT NULL DEFAULT \'\';',
+  'ALTER TABLE "Project" ADD COLUMN "amc_contact" TEXT NOT NULL DEFAULT \'\';',
+];
+for (const sql of amcCols) {
+  try {
+    db.exec(sql);
+  } catch {}
+}
+
+// Auto-seed AMC on Completed / Delivered projects if unset
+try {
+  const completedProjs = db
+    .prepare('SELECT "id", "budget" FROM "Project" WHERE "status" = \'Completed\'')
+    .all() as any[];
+  for (const cp of completedProjs) {
+    const existingAmc = db
+      .prepare('SELECT "amc_amount", "amc_active" FROM "Project" WHERE "id" = ?')
+      .get(cp.id) as any;
+    if (!existingAmc || Number(existingAmc.amc_amount || 0) === 0) {
+      const amcAmt = Math.round((Number(cp.budget || 500000) * 0.18) / 1000) * 1000;
+      const now = new Date();
+      const start = new Date(now.getTime() - 60 * 86400000).toISOString();
+      const end = new Date(now.getTime() + 305 * 86400000).toISOString();
+      db.prepare(`
+        UPDATE "Project"
+        SET "amc_active" = 1,
+            "amc_status" = 'Active',
+            "amc_amount" = ?,
+            "amc_start_date" = ?,
+            "amc_end_date" = ?,
+            "amc_billing_cycle" = 'Annual',
+            "amc_sla_tier" = '24/7 Mission Critical',
+            "amc_scope" = 'L2/L3 Incident Support, Monthly Security Updates, Kubernetes cluster monitoring, 99.9% Uptime SLA',
+            "amc_contact" = 'lead-ops@nexintai.com'
+        WHERE "id" = ?
+      `).run(amcAmt, start, end, cp.id);
+    }
+  }
+} catch {}
 
 try {
   db.exec('ALTER TABLE "Lead" ADD COLUMN "followup_resource" TEXT NOT NULL DEFAULT ""');
@@ -1008,6 +1066,15 @@ export const prisma = {
     progress: 0,
     progress_override: 0,
     notes: '',
+    amc_active: 0,
+    amc_status: 'Not Contracted',
+    amc_amount: 0,
+    amc_start_date: null,
+    amc_end_date: null,
+    amc_billing_cycle: 'Annual',
+    amc_sla_tier: 'Standard 9x5',
+    amc_scope: '',
+    amc_contact: '',
     created_at: toIso(new Date()),
   })),
   timelineEntry: createModelDelegate('TimelineEntry', () => ({
