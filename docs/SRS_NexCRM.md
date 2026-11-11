@@ -1,242 +1,307 @@
 # Software Requirements Specification (SRS)
-## Project Name: NexCRM — Enterprise IT & AI Services CRM
-**Document Version:** 1.0.0  
-**Date:** November 2026  
-**Target Organization:** NexInt AI / NexCRM (Indian IT Services & AI Solutions)  
-**Standard:** IEEE 830-1998 Compliant  
+## Project Name: NexCRM — Full-Lifecycle Enterprise IT & AI Services CRM
+**Document Version:** 2.0.0  
+**Date:** November 11, 2026  
+**Target Organization:** NexInt AI Technologies (Indian IT Services & AI Solutions)  
+**Compliance Standard:** IEEE Std 830-1998 / ISO/IEC/IEEE 29148  
 
 ---
 
 ## 1. Introduction
 
 ### 1.1 Purpose
-This Software Requirements Specification (SRS) document details the complete functional, non-functional, interface, and architectural requirements for **NexCRM**. NexCRM is a full-lifecycle Customer Relationship Management and Delivery Operations platform tailored specifically for an Indian Information Technology enterprise specializing in Artificial Intelligence, Data Engineering, and digital product incubation.
+This Software Requirements Specification (SRS) provides a complete, authoritative specification of the functional, non-functional, data model, interface, and operational requirements for **NexCRM** ([`app.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/app.ts)). NexCRM is an integrated Customer Relationship Management (CRM), Project Delivery, Financial Accounting, and Support Operations platform purpose-built for **NexInt AI Technologies**, an Indian IT services and AI consulting enterprise.
 
-### 1.2 Scope of the Software
-NexCRM unifies the end-to-end IT services delivery lifecycle:
-1. **Pre-Sales & Lead Pipeline**: Ingestion, qualification, and stage progression of prospective client leads.
-2. **AI-Driven Proposal Automation**: Contextual proposal generation and client dispatch with automated status transitions.
-3. **Client 360 & Account Management**: Centralized client master records linked directly to lead conversion history.
-4. **Project & Delivery Tracking**: Milestone and task execution tracking with interactive timelines.
-5. **Vendor Cost & Profitability Accounting**: Granular project-level cost tracking (AWS cloud infrastructure, contractor/freelancer, resource allocation) with automated net profit margin calculation in Indian Rupees (INR, ₹).
-6. **Executive Revenue Analytics**: Multi-dimensional monthly and yearly revenue analysis aggregated across projects and acquisition sources.
-7. **Resource & Capacity Management**: Technical resource allocation, seniority tracking, and utilization percentages.
-8. **Business-As-Usual (BAU) & Support Operations**: SLA-governed support ticketing and client CSAT/testimonial logging.
+### 1.2 Product Scope
+NexCRM unifies the end-to-end commercial and delivery lifecycle across **16 core operational modules**:
+1. **Executive Dashboard**: Real-time KPIs across pipeline funnel, project health, follow-up alerts, and delivery velocity.
+2. **Pre-Sales & Lead Pipeline**: Lead ingestion, qualification, resource follow-up assignment (`followup_resource`), and timestamped work notes.
+3. **Lead Conversion Pipeline**: Structured conversion workflow tracking win/loss outcomes, deal valuations, loss reasons, and audit history.
+4. **AI Proposal Studio & Dispatch**: Domain-aware dynamic HTML proposal generation (powered by Google Gemini & built-in domain synthesizers) with 1-click email delivery.
+5. **Auto Email Configuration & Follow-up Engine**: Dedicated **Resend Cloud API** transport configuration, sender branding, and automated stage-aware follow-up cadence.
+6. **Client 360 & Account Management**: Master client directory linking historical lead notes, active contracts, payment phases, and support tickets.
+7. **Project Delivery & AMC Tracking**: Project execution tracking with **Annual Maintenance Contract (AMC)** lifecycle management (SLA tiers, billing cycles, renewal alerts).
+8. **Interactive Delivery Timeline**: Milestone, task, and deliverable scheduling with automatic or manual progress overrides.
+9. **Client Milestone Payments & Invoicing**: Phased milestone billing (`ClientPayment`), payment collection tracking, and automatic invoice numbering (`INV-YYYY-XXXX`).
+10. **Project Vendor Costs & Profitability**: Granular project-level expenditure tracking (`ProjectCost`) with real-time net profit and margin computation.
+11. **Company Expenses Ledger**: Enterprise-wide overhead and project-linked expense tracking (`Expense`) across 10 cost categories with receipt and vendor auditing.
+12. **Revenue Analytics**: Multi-horizon (Monthly/Yearly) gross contract value, vendor cost, and net profit distributions by project, service line, and lead source.
+13. **Executive Reports & Analytics**: Consolidated P&L, resource conversion leaderboards, AMC recurring revenue metrics, and support ticket resolution (MTTR & SLA) intelligence.
+14. **Resource & Capacity Directory**: Executive leadership (CEO, CMO, CTO) and engineering talent profiles, hourly billing rates, skill matrices, and project allocation percentages.
+15. **Business-As-Usual (BAU) Support Desk**: SLA-governed post-delivery support ticketing with priority levels, state workflows, and resolution time tracking.
+16. **Client CSAT & Feedback Hub + System Backup**: 1–5 star client satisfaction logging, testimonial curation, and 1-click JSON database snapshot backup/restore.
 
 ### 1.3 Definitions, Acronyms, and Abbreviations
-- **CRM**: Customer Relationship Management
-- **SRS**: Software Requirements Specification
-- **INR (₹)**: Indian Rupee (Default base currency)
-- **BAU**: Business As Usual (Maintenance & Ongoing Support)
-- **RBAC**: Role-Based Access Control
-- **CSAT**: Customer Satisfaction Score
-- **SLA**: Service Level Agreement
-- **JWT**: JSON Web Token
-- **REST**: Representational State Transfer
-
-### 1.4 References
-- IEEE Std 830-1998: IEEE Recommended Practice for Software Requirements Specifications.
-- NexCRM Architecture & Implementation Repository.
+| Acronym / Term | Definition |
+| :--- | :--- |
+| **AMC** | Annual Maintenance Contract (Post-delivery recurring support contract) |
+| **BAU** | Business As Usual (Ongoing maintenance and support ticket operations) |
+| **CSAT** | Customer Satisfaction Score (1 to 5 star rating scale) |
+| **INR (`₹`)** | Indian Rupee — standardized base currency across all financial modules |
+| **JWT** | JSON Web Token (Stateless authentication token format) |
+| **MTTR** | Mean Time To Resolve (Average hours elapsed from ticket creation to resolution) |
+| **RBAC** | Role-Based Access Control (`ADMIN` vs `MEMBER`) |
+| **SLA** | Service Level Agreement (Target response and resolution window) |
+| **WAL** | Write-Ahead Logging (SQLite concurrency and crash-recovery mode) |
 
 ---
 
 ## 2. Overall Description
 
-### 2.1 Product Perspective
-NexCRM operates as a modern client-server web application. It delivers a high-speed single-page application (SPA) front-end paired with a modular REST API backend and an embedded, high-performance relational database engine.
+### 2.1 System Architecture
+NexCRM uses a decoupled Single-Page Application (SPA) frontend communicating over RESTful JSON endpoints with a zero-dependency Node.js v22+ HTTP server and an embedded SQLite relational engine (`node:sqlite`).
 
 ```mermaid
-graph TD
-    ClientBrowser["Client Browser (React 18 + Tailwind)"] -->|HTTPS / JSON REST API| ExpressBackend["Express 4.x REST API Engine (Node.js)"]
-    ExpressBackend -->|JWT Auth & Security Guard| AuthMiddleware["Auth & RBAC Middleware"]
-    AuthMiddleware -->|Route Handling| RouteControllers["Route Handlers (Leads, Projects, Revenue, Proposals)"]
-    RouteControllers -->|Data Access Layer| ORM["Custom Data Access / Prisma Engine"]
-    ORM -->|Prepared Statements| SQLiteDB[("SQLite Storage Engine (node:sqlite)")]
+flowchart TD
+    subgraph ClientTier["Presentation Layer (React 18 + TypeScript + Tailwind CSS)"]
+        UI_Sales["Sales & Pipeline\n(Leads, Conversions, Proposals, Auto Email)"]
+        UI_Delivery["Delivery & Operations\n(Clients, Projects + AMC, Timeline, Resources, BAU, Feedback)"]
+        UI_Finance["Finance & Intelligence\n(Payments, Expenses, Revenue, Executive Reports)"]
+    end
+
+    subgraph ServerTier["Application Layer (Node.js v22+ Custom HTTP Router)"]
+        AuthMW["JWT Authentication & RBAC Middleware\n(scrypt / PBKDF2 + HMAC-SHA256)"]
+        RouteEngine["Modular REST API Controllers (/api/*)"]
+        AIEngine["AI Proposal & Follow-up Synthesizer\n(Google Gemini API + Domain Templates)"]
+        MailEngine["Email Transport Dispatcher\n(Resend Cloud API)"]
+    end
+
+    subgraph DataTier["Persistence Layer (node:sqlite in WAL Mode)"]
+        ORM["Custom Prisma-Compatible Data Access Layer (prisma.ts)"]
+        SQLiteDB[("Relational SQLite Database\n(18 Tables + Foreign Key Cascades)")]
+    end
+
+    ClientTier -->|HTTPS / REST JSON| AuthMW
+    AuthMW --> RouteEngine
+    RouteEngine --> AIEngine
+    RouteEngine --> MailEngine
+    RouteEngine --> ORM
+    ORM --> SQLiteDB
 ```
 
-### 2.2 User Classes and Characteristics
-| User Class | Description | Privileges |
-| :--- | :--- | :--- |
-| **System Administrator (ADMIN)** | Executive management, finance heads, and practice leads. | Full read/write/delete privileges across all leads, clients, financials, proposals, users, and system metrics. |
-| **Team Member / Delivery Manager (MEMBER)** | Project managers, business development associates, and technical leads. | Lead management, proposal generation, project milestone updates, cost logging, and support ticket resolution. |
+### 2.2 User Classes and Executive Accounts
+The platform enforces Role-Based Access Control (RBAC) across two primary security roles (`ADMIN` and `MEMBER`) and comes pre-provisioned with executive leadership profiles in both the `User` and `Resource` directories:
 
-### 2.3 Operating Environment
-- **Server Platform**: Node.js v22+ (Native type stripping and `node:sqlite` acceleration)
-- **Client Platform**: Modern Web Browsers (Chrome, Safari, Firefox, Edge) supporting ECMAScript 2022+
-- **Host OS**: macOS / Linux / Windows Server / Containerized environments
+| Executive Name | Role Title | Email / Login ID | System Role | Department |
+| :--- | :--- | :--- | :--- | :--- |
+| **Vivek Mohandass** | **CEO** | `vinuvivek1@gmail.com` | `ADMIN` | `Executive Leadership` |
+| **Glanee Rose** | **CMO** | `glenysimon@gmail.com` | `ADMIN` | `Executive Leadership` |
+| **Vishaal Arun** | **CTO** | `vishaal351@gmail.com` | `ADMIN` | `Executive Leadership` |
+| **Team / Delivery Member** | Engineer / PM | Custom Registered Email | `MEMBER` | Engineering / AI & Data / etc. |
 
-### 2.4 Design and Implementation Constraints
-1. **Base Currency Standardization**: All financial calculations, quotes, proposals, vendor expenditures, and revenue reports must strictly compute and display in **Indian Rupees (INR / ₹)**.
-2. **Dedicated Core Services**: Service classifications across the platform must adhere strictly to the 4 offerings:
+### 2.3 Design and Implementation Constraints
+1. **Standardized Currency**: All financial inputs, proposals, milestone invoices, project budgets, AMC contracts, vendor costs, and company expenses operate in **Indian Rupees (`INR` / `₹`)**.
+2. **Core Service Lines**: All leads, proposals, and projects classify into four core service lines:
    - `AI services`
    - `Data Engineering`
    - `Idea to Launch`
    - `Others`
-3. **Database Portability**: Zero external database server overhead by leveraging high-performance, ACID-compliant relational SQLite storage.
+3. **Exclusive Cloud Email Transport**: Outbound email automation is streamlined exclusively around the **Resend Cloud API** (`https://api.resend.com/emails`) with database-persisted configuration and fallback logging.
+4. **Zero External Database Dependency**: Uses Node.js 22 native `node:sqlite` (`DatabaseSync`) with `PRAGMA journal_mode = WAL` and `PRAGMA foreign_keys = ON`.
 
 ---
 
-## 3. System Architecture & Data Model
+## 3. Relational Data Model & Schema Specification
 
-### 3.1 Entity Relationship Diagram
+### 3.1 Entity-Relationship Diagram (18 Tables)
 
 ```mermaid
 erDiagram
-    User ||--o{ Lead : "manages"
-    User ||--o{ ClientNote : "authors"
+    User ||--o{ Lead : "owns"
     User ||--o{ LeadNote : "authors"
-    User ||--o{ Project : "supervises"
+    User ||--o{ ClientNote : "authors"
+    User ||--o{ Project : "manages"
     User ||--o{ ProjectCost : "logs"
-    User ||--o{ Proposal : "generates"
-    
-    Lead ||--o| Conversion : "converts into"
-    Lead ||--o{ LeadNote : "contains"
-    Lead ||--o| Client : "promotes to"
+    User ||--o{ ClientPayment : "records"
+    User ||--o{ Expense : "records"
+    User ||--o{ Proposal : "creates"
+    User ||--o{ EmailLog : "dispatches"
+
+    Lead ||--o{ LeadNote : "has"
+    Lead ||--o| Conversion : "enters"
+    Lead ||--o| Client : "converts to"
     Lead ||--o{ Proposal : "receives"
-    
-    Client ||--o{ ClientNote : "contains"
+    Lead ||--o{ EmailLog : "logged for"
+
+    Client ||--o{ ClientNote : "has"
     Client ||--o{ Project : "commissions"
-    Client ||--o{ Feedback : "submits"
+    Client ||--o{ ClientPayment : "pays"
     Client ||--o{ BauTicket : "raises"
-    
+    Client ||--o{ Feedback : "submits"
+
     Project ||--o{ TimelineEntry : "schedules"
     Project ||--o{ ProjectCost : "incurs"
+    Project ||--o{ ClientPayment : "billed via"
+    Project ||--o{ Expense : "linked to"
     Project ||--o{ ResourceAssignment : "allocates"
-    Project ||--o{ BauTicket : "tracks"
-    
+    Project ||--o{ BauTicket : "supports"
+    Project ||--o{ Feedback : "reviewed on"
+
     Resource ||--o{ ResourceAssignment : "assigned to"
 ```
 
-### 3.2 Schema Specifications
-- **User**: `id`, `name`, `email`, `password_hash`, `role` (`ADMIN` | `MEMBER`), `created_at`.
-- **Lead**: `id`, `name`, `company`, `email`, `phone`, `source`, `service`, `budget`, `currency`, `status`, `owner_id`, `next_followup`, `notes`, `created_at`.
-- **Conversion**: `id`, `lead_id`, `outcome`, `reason`, `comment`, `deal_value`, `currency`, `decided_at`, `history`, `created_at`.
-- **Client**: `id`, `lead_id`, `company`, `contact_name`, `email`, `phone`, `address`, `website`, `industry`, `status`, `notes`, `became_client_at`, `created_at`.
-- **Project**: `id`, `client_id`, `name`, `description`, `service_type`, `status`, `start_date`, `end_date`, `budget`, `currency`, `manager_id`, `tech_stack`, `progress`, `progress_override`, `notes`, `created_at`.
-- **ProjectCost**: `id`, `project_id`, `title`, `category`, `vendor_or_resource`, `amount`, `incurred_date`, `notes`, `created_by`, `created_at`.
-- **Proposal**: `id`, `proposal_number`, `lead_id`, `client_id`, `company_name`, `recipient_name`, `recipient_email`, `project_title`, `service_type`, `budget`, `currency`, `timeline_weeks`, `key_requirements`, `email_subject`, `email_body`, `html_proposal`, `ai_model`, `status`, `sent_at`, `created_by`, `created_at`.
+### 3.2 Table Schema Definitions ([`prisma.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/lib/prisma.ts))
+
+| # | Table Name | Primary Key | Key Columns & Relationships |
+| :--- | :--- | :--- | :--- |
+| 1 | **`User`** | `id` (UUID) | `name`, `email` (UNIQUE), `password_hash` (scrypt/PBKDF2), `role` (`ADMIN`\|`MEMBER`), `created_at` |
+| 2 | **`Lead`** | `id` (UUID) | `name`, `company`, `email`, `phone`, `source`, `service`, `budget`, `currency`, `status`, `owner_id` (FK), `next_followup`, `followup_resource`, `notes`, `created_at` |
+| 3 | **`LeadNote`** | `id` (UUID) | `lead_id` (FK CASCADE), `text`, `created_by` (FK), `created_at` |
+| 4 | **`Conversion`** | `id` (UUID) | `lead_id` (UNIQUE FK), `outcome` (`in_progress`\|`converted`\|`not_converted`), `reason`, `comment`, `deal_value`, `currency`, `decided_at`, `history` (JSON), `created_at` |
+| 5 | **`Client`** | `id` (UUID) | `lead_id` (UNIQUE FK), `company`, `contact_name`, `email`, `phone`, `address`, `website`, `industry`, `status` (`Active`\|`Inactive`\|`Prospect`), `notes`, `became_client_at`, `created_at` |
+| 6 | **`ClientNote`** | `id` (UUID) | `client_id` (FK CASCADE), `text`, `created_by` (FK), `created_at` |
+| 7 | **`Project`** | `id` (UUID) | `client_id` (FK), `name`, `description`, `service_type`, `status`, `start_date`, `end_date`, `budget`, `currency`, `manager_id` (FK), `tech_stack`, `progress`, `progress_override`, `notes`, `amc_active`, `amc_status`, `amc_amount`, `amc_start_date`, `amc_end_date`, `amc_renewal_date`, `amc_billing_cycle`, `amc_sla_tier`, `amc_hours_included`, `amc_hours_used`, `amc_scope`, `amc_notes`, `amc_contact`, `created_at` |
+| 8 | **`TimelineEntry`** | `id` (UUID) | `project_id` (FK CASCADE), `title`, `description`, `type` (`Milestone`\|`Task`\|`Deliverable`), `start_date`, `end_date`, `status`, `assignee_id` (FK), `sort_order`, `created_at` |
+| 9 | **`ProjectCost`** | `id` (UUID) | `project_id` (FK CASCADE), `title`, `category`, `vendor_or_resource`, `amount`, `incurred_date`, `notes`, `created_by` (FK), `created_at` |
+| 10 | **`ClientPayment`** | `id` (UUID) | `client_id` (FK), `project_id` (FK), `phase_name`, `phase_number`, `amount`, `currency`, `percentage`, `status` (`Pending`\|`Partial`\|`Paid`\|`Overdue`), `due_date`, `paid_date`, `paid_amount`, `invoice_number`, `payment_method`, `transaction_ref`, `notes`, `created_by` (FK), `created_at` |
+| 11 | **`Expense`** | `id` (UUID) | `title`, `category`, `amount`, `currency`, `expense_date`, `status` (`Paid`\|`Pending`\|`Reimbursed`\|`Cancelled`), `payment_method`, `vendor`, `invoice_number`, `receipt_url`, `project_id` (FK NULLABLE), `paid_by`, `recurring`, `recurring_cycle`, `notes`, `created_by` (FK), `created_at` |
+| 12 | **`Resource`** | `id` (UUID) | `name`, `email` (UNIQUE), `role_title`, `department` (`Executive Leadership`\|`Engineering`\|`Cloud & DevOps`\|`AI & Data`\|`Design & UX`\|`Delivery & QA`), `seniority` (`Executive`\|`Principal`\|`Senior`\|`Mid-Level`\|`Junior`), `skills`, `total_capacity`, `hourly_rate`, `on_leave`, `notes`, `created_at` |
+| 13 | **`ResourceAssignment`** | `id` (UUID) | `resource_id` (FK CASCADE), `project_id` (FK CASCADE), `assignment_role`, `allocation_pct`, `start_date`, `end_date`, `status` (`Active`\|`Planned`\|`Completed`), `notes`, `created_at` |
+| 14 | **`Proposal`** | `id` (UUID) | `proposal_number` (UNIQUE), `lead_id` (FK), `client_id` (FK), `company_name`, `recipient_name`, `recipient_email`, `project_title`, `service_type`, `budget`, `currency`, `timeline_weeks`, `key_requirements`, `email_subject`, `email_body`, `html_proposal`, `ai_model`, `status` (`Draft`\|`Sent`\|`Accepted`\|`Declined`), `sent_at`, `created_by` (FK), `created_at` |
+| 15 | **`BauTicket`** | `id` (UUID) | `ticket_number` (UNIQUE), `client_id` (FK), `project_id` (FK), `title`, `description`, `category`, `priority` (`Critical`\|`High`\|`Medium`\|`Low`), `state` (`New`\|`In progress`\|`Waiting on client`\|`Resolved`\|`Closed`), `reported_by`, `assignee_id` (FK), `resolution_notes`, `sla_due_date`, `resolved_at`, `created_at` |
+| 16 | **`Feedback`** | `id` (UUID) | `client_id` (FK), `project_id` (FK), `rating` (1–5), `sentiment` (`Positive`\|`Neutral`\|`Negative`), `category`, `comment`, `action_taken`, `status`, `submitted_by`, `feedback_date`, `recorded_by` (FK), `is_testimonial`, `created_at` |
+| 17 | **`EmailLog`** | `id` (UUID) | `lead_id` (FK), `client_id`, `recipient_email`, `recipient_name`, `subject`, `body`, `status` (`Sent`\|`Simulated`\|`Failed`), `provider`, `error_message`, `sent_by` (FK), `sent_at` |
+| 18 | **`SystemSetting`** | `key` (TEXT) | `value` (JSON/TEXT), `updated_at` (Stores `email_automation_config`) |
 
 ---
 
-## 4. Functional Requirements
+## 4. Detailed Functional Requirements
 
-### 4.1 Module 1: Authentication & Access Control
-- **FR-AUTH-101**: The system shall provide secure JWT authentication using PBKDF2/SHA-256 salted password hashing.
-- **FR-AUTH-102**: The system shall support Role-Based Access Control distinguishing `ADMIN` and `MEMBER`.
-- **FR-AUTH-103**: The API shall validate bearer tokens on all protected `/api/*` endpoints and reject unauthenticated requests with HTTP 401.
+### 4.1 Module 1: Authentication, Security & Quick-Access Login
+- **FR-AUTH-01**: Support email and password login via `POST /api/auth/login` verifying credentials against `scrypt` and `PBKDF2-SHA256` password hashes ([`auth.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/routes/auth.ts)).
+- **FR-AUTH-02**: Issue signed 7-day JWT bearer tokens containing `id`, `name`, `email`, and `role`.
+- **FR-AUTH-03**: Provide 1-click executive quick-fill login chips on [`LoginPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/LoginPage.tsx) for **Vivek Mohandass**, **Glanee Rose**, and **Vishaal Arun**.
 
-### 4.2 Module 2: Lead Pipeline Management
-- **FR-LEAD-201**: The system shall support CRUD operations on leads with the following pipeline stages:
-  - `New`, `Contacted`, `Qualified`, `Proposal sent`, `Negotiation`, `Won`, `Lost`.
-- **FR-LEAD-202**: Available service offerings for any lead must be restricted to:
-  - `AI services`
-  - `Data Engineering`
-  - `Idea to Launch`
-  - `Others`
-- **FR-LEAD-203**: When a lead is marked as `Won`, the system shall enable 1-click conversion to an active `Client` and seed their project account.
-- **FR-LEAD-204**: The system shall record timestamps, notes, and owner changes on the lead audit thread.
+### 4.2 Module 2: Lead Pipeline & Follow-Up Work Notes
+- **FR-LEAD-01**: Manage leads across lifecycle statuses: `New`, `Contacted`, `Qualified`, `Proposal sent`, `Negotiation`, `Converted`, and `Not converted` ([`LeadsPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/LeadsPage.tsx)).
+- **FR-LEAD-02**: Assign a dedicated `followup_resource` and `next_followup` date to each lead to track pre-sales ownership until conversion.
+- **FR-LEAD-03**: Maintain an chronological thread of `LeadNote` entries recording the author's name, role, and timestamp, with support for simultaneous lead status and follow-up date updates when logging a note.
+- **FR-LEAD-04**: Support CSV bulk import/export and 1-click pipeline movement to the Conversion board (`POST /api/leads/:id/move-to-conversion`).
 
-### 4.3 Module 3: AI Proposal Generation & Dispatch
-- **FR-PROP-301**: The system shall provide a generation studio that accepts requirements, project scope, timeline, and budget parameters.
-- **FR-PROP-302**: Generated proposals shall output cleanly formatted HTML styled with professional typography, scope tables, tech stack details, and milestone matrices.
-- **FR-PROP-303**: Proposals must not contain external vendor watermarks ("Powered by Argon AI") and must represent NexCRM / NexInt AI enterprise branding.
-- **FR-PROP-304**: When a proposal is dispatched to a prospective client:
-  - The proposal status shall be updated to `Sent` with `sent_at` timestamp.
-  - The associated lead's status shall automatically transition to `Proposal sent`.
+### 4.3 Module 3: Conversion Pipeline & Automatic Client Promotion
+- **FR-CONV-01**: Track leads in the conversion pipeline across three states: `in_progress`, `converted`, and `not_converted` ([`LeadConversionPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/LeadConversionPage.tsx)).
+- **FR-CONV-02**: Require a `deal_value` (`>= 0`) when marking a conversion as `converted`, and require a structured `reason` (`Budget`, `Went to competitor`, `No response`, `Timing`, `Requirements mismatch`, `Other`) when marking as `not_converted`.
+- **FR-CONV-03**: Automatically create and link a `Client` record upon conversion (if one does not already exist) and append an immutable audit entry to the conversion's `history` JSON array.
 
-### 4.4 Module 4: Project Delivery & Timeline Tracking
-- **FR-PROJ-401**: Projects must track `client_id`, `service_type`, `status` (`Planned`, `In progress`, `On hold`, `Completed`, `Cancelled`), `budget` (INR), and `manager_id`.
-- **FR-PROJ-402**: The project timeline shall visualize tasks, milestones, deliverables, and assignees.
-- **FR-PROJ-403**: Progress shall be calculable automatically based on milestone completion percentage, or via explicit manager override.
+### 4.4 Module 4: Dynamic AI Proposal Studio
+- **FR-PROP-01**: Synthesize bespoke, domain-specific HTML proposals (`POST /api/proposals/generate`) tailored to the client's industry (Healthcare, FinTech, Data Lakehouse, E-Commerce, AI Agents, etc.) and custom prompt requirements ([`proposals.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/routes/proposals.ts)).
+- **FR-PROP-02**: Generate structured deliverables, system architecture blueprints, phase-wise timelines, and investment breakdowns in `INR (₹)`.
+- **FR-PROP-03**: Dispatch proposals via email (`POST /api/proposals/:id/send`), automatically transitioning the proposal status to `Sent` and the linked lead status to `Proposal sent`.
 
-### 4.5 Module 5: Vendor Cost & Profitability Accounting
-- **FR-COST-501**: Within any project, authorized users must be able to record expenses categorized into:
-  - `Cloud / Infrastructure` (e.g. AWS hosting, staging environments, GPUs)
-  - `Resource Allocation` (e.g. dedicated engineering squads, UI/UX designers)
-  - `Third-Party Vendor / API` (e.g. OpenAI / Anthropic API consumption)
-  - `Software License / SaaS`
-  - `Contractor / Freelancer`
-  - `Other`
-- **FR-COST-502**: The financial computation engine must dynamically evaluate:
-  $$\text{Total Incurred Cost} = \sum (\text{Project Cost Amounts})$$
-  $$\text{Net Profit} = \text{Budget} - \text{Total Incurred Cost}$$
-  $$\text{Profit Margin (\%)} = \left(\frac{\text{Net Profit}}{\text{Budget}}\right) \times 100$$
-- **FR-COST-503**: Project views must display budget depletion warnings if incurred costs approach or exceed 100% of the allocated budget.
+### 4.5 Module 5: Auto Email Configuration & Follow-Up Automation
+- **FR-MAIL-01**: Provide a dedicated **Auto Email Configuration** tab ([`AutoEmailPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/AutoEmailPage.tsx)) configured exclusively for the **Resend Cloud API** (`provider: 'resend'`).
+- **FR-MAIL-02**: Allow administrators to configure `resend_api_key`, `sender_name`, `sender_email`, `reply_to_email`, `auto_followup_enabled`, `followup_interval_days`, `max_followup_attempts`, and `include_proposal_link` via `PUT /api/automation/config`.
+- **FR-MAIL-03**: Provide a live **Test Email Delivery** tool (`POST /api/automation/test-email`) and a **Batch Follow-Up Runner** (`POST /api/automation/run-batch`) that identifies overdue leads, generates context-aware follow-up emails, sends them via Resend, and logs every transmission in `EmailLog`.
 
-### 4.6 Module 6: Executive Revenue Analytics Dashboard
-- **FR-REV-601**: The system shall aggregate revenue metrics across both **Monthly** and **Yearly** horizons.
-- **FR-REV-602**: The revenue engine shall aggregate project contract values, costs, and profits grouped by:
-  - Delivery Project
-  - Customer Acquisition Source (e.g., Referral, Inbound, LinkedIn, Website)
-  - Service Offering Category
-- **FR-REV-603**: Financial dashboards shall render graphical distributions comparing gross contract value, incurred vendor expenditure, and net retained margins.
+### 4.6 Module 6: Project Delivery & Annual Maintenance Contract (AMC) Tracking
+- **FR-PROJ-01**: Manage client delivery projects across `Planned`, `In progress`, `On hold`, `Completed`, and `Cancelled` statuses ([`ProjectsPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/ProjectsPage.tsx)).
+- **FR-PROJ-02**: Track **Annual Maintenance Contracts (AMC)** directly on delivered or active projects (`PUT /api/projects/:id`), including:
+  - `amc_active` (boolean toggle)
+  - `amc_status` (`Active`, `Pending Renewal`, `Expired`, `Not Contracted`)
+  - `amc_amount` (recurring fee in `INR`)
+  - `amc_billing_cycle` (`Annual`, `Quarterly`, `Monthly`)
+  - `amc_sla_tier` (`Standard 9x5`, `Priority 12x6`, `Mission Critical 24x7`, `Dedicated Engineer`)
+  - `amc_start_date`, `amc_renewal_date`, `amc_hours_included`, `amc_hours_used`, and `amc_notes`.
+- **FR-PROJ-03**: Surface automated renewal alerts for AMCs expiring within 30 days.
 
-### 4.7 Module 7: Resource & Talent Management
-- **FR-RES-701**: The system shall maintain internal technical talent profiles including skills, seniority level, department, hourly rate in INR, and availability.
-- **FR-RES-702**: Project allocation percentages must be tracked across assignments to prevent over-allocation (>100% capacity).
+### 4.7 Module 7: Client Milestone Payments & Invoicing
+- **FR-PAY-01**: Track phased project billing (`ClientPayment`) with milestone percentages, due dates, paid amounts, payment methods (`Bank Transfer / NEFT`, `UPI`, `Razorpay / Stripe`, `Cheque`, `Wire Transfer`), and transaction references ([`ClientPaymentsPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/ClientPaymentsPage.tsx)).
+- **FR-PAY-02**: Automatically generate sequential invoice numbers (`INV-YYYY-XXXX`) when a payment phase is marked as `Paid` (`PUT /api/payments/:id`).
 
-### 4.8 Module 8: Support Ticketing (BAU) & Quality Feedback
-- **FR-SUP-801**: Support tickets shall track SLA due dates, severity, client association, and assignment state (`New`, `In progress`, `Waiting on client`, `Resolved`, `Closed`).
-- **FR-SUP-802**: Client CSAT records shall capture 1-5 star ratings, sentiment categorization, feedback comments, and a toggle for public marketing testimonials.
+### 4.8 Module 8: Project Vendor Costs & Company Expenses Ledger
+- **FR-EXP-01**: Track project-specific direct delivery costs (`ProjectCost`) to compute real-time project net margin:
+  $$\text{Project Net Profit} = \text{Project Budget} - \sum \text{ProjectCost.amount}$$
+- **FR-EXP-02**: Provide a dedicated **Expenses** tab ([`ExpensesPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/ExpensesPage.tsx)) to manage company-wide and project-linked expenses (`Expense`) across categories:
+  - `Cloud & Hosting`, `Software & SaaS Licenses`, `AI APIs & LLM Tokens`, `Contractor & Freelancer`, `Payroll & Salaries`, `Office & Infrastructure`, `Marketing & Ads`, `Travel & Client Meetings`, `Hardware & Equipment`, `Legal & Accounting`, and `Miscellaneous`.
+- **FR-EXP-03**: Support full CRUD operations, status toggles (`Paid`, `Pending`, `Reimbursed`, `Cancelled`), recurring expense cycles, and CSV export (`GET /api/expenses`, `POST /api/expenses`, `PUT /api/expenses/:id`, `DELETE /api/expenses/:id`).
+
+### 4.9 Module 9: Executive Reports & Analytics Suite
+- **FR-REP-01**: Provide a comprehensive **Reports** tab ([`ReportsPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/ReportsPage.tsx), `GET /api/reports/comprehensive`) with date-range filtering (`All Time`, `This Month`, `Last 3 Months`, `Last 6 Months`, `This Year`, `Custom Range`).
+- **FR-REP-02**: Compute consolidated enterprise financial metrics:
+  $$\text{Total Income Received} = \sum_{\text{status}=\text{Paid}} \text{ClientPayment.paid\_amount}$$
+  $$\text{Total Outflow} = \sum_{\text{status}=\text{Paid}} \text{Expense.amount} + \sum \text{ProjectCost.amount}$$
+  $$\text{Net Profit} = \text{Total Income Received} - \text{Total Outflow}$$
+- **FR-REP-03**: Generate the **Resource Conversion Leaderboard**, ranking team members and resources by total leads handled, converted leads count, conversion rate (`%`), and total deal value won (`₹`).
+- **FR-REP-04**: Compute **Support Ticket & Resolution Speed (MTTR) Analytics** from `BauTicket`:
+  - Total tickets received vs. resolved vs. open backlog.
+  - SLA Compliance Rate (`%` of tickets resolved on or before `sla_due_date`).
+  - Average, Fastest, and Slowest resolution times (in hours and days) calculated from `created_at` to `resolved_at`.
+  - Breakdown by Priority (`Critical`, `High`, `Medium`, `Low`) and Category.
+
+### 4.10 Module 10: Resource & Executive Directory
+- **FR-RES-01**: Maintain resource profiles across departments (`Executive Leadership`, `Engineering`, `Cloud & DevOps`, `AI & Data`, `Design & UX`, `Delivery & QA`) and seniorities (`Executive`, `Principal`, `Senior`, `Mid-Level`, `Junior`) ([`ResourcesPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/ResourcesPage.tsx)).
+- **FR-RES-02**: Compute live capacity utilization (`allocated_pct`, `available_pct`) from active `ResourceAssignment` records and classify availability (`Available`, `Partially Allocated`, `Fully Allocated`, `Overallocated`, `On Leave`).
+
+### 4.11 Module 11: BAU Support Desk, CSAT Feedback & System Backup
+- **FR-BAU-01**: Track post-delivery `BauTicket` items with automatic `resolved_at` timestamping when transitioning to `Resolved` or `Closed` ([`BauPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/BauPage.tsx)).
+- **FR-CSAT-01**: Capture client ratings (1–5 stars), sentiment classification, and testimonial flags ([`FeedbackPage.tsx`](file:///Users/vishaalarun/PycharmProjects/NexCRM/frontend/src/pages/FeedbackPage.tsx)).
+- **FR-SYS-01**: Provide full database JSON snapshot export (`GET /api/system/backup`) and point-in-time transactional restore (`POST /api/system/restore`) ([`system.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/routes/system.ts)).
 
 ---
 
 ## 5. Non-Functional Requirements
 
-### 5.1 Performance Requirements
-- **NFR-PERF-1**: API response times for read operations shall be less than 150ms under typical loads (1,000 concurrent entities).
-- **NFR-PERF-2**: Initial client bundle load time must be under 1.5 seconds on standard broadband connections.
-- **NFR-PERF-3**: Database transactions must be executed using SQLite write-ahead logging (WAL) and synchronous memory optimization to ensure sub-10ms write operations.
+### 5.1 Performance & Scalability
+- **NFR-PERF-01**: Read API endpoints (`/api/dashboard`, `/api/reports/comprehensive`, `/api/leads`) shall respond within `< 150ms` for datasets up to 10,000 records using indexed SQLite queries in `WAL` mode.
+- **NFR-PERF-02**: Frontend production bundle built via Vite 5 + TypeScript 5 (`npm run build --prefix frontend`) shall render interactive views with zero page reloads.
 
-### 5.2 Security Requirements
-- **NFR-SEC-1**: Sensitive fields (e.g., `password_hash`) must never be returned in API response bodies.
-- **NFR-SEC-2**: All database queries must execute via parameterized SQL statements to eliminate SQL injection vectors.
-- **NFR-SEC-3**: All cross-site scripting (XSS) risks in user-generated rich text and proposal HTML must be mitigated through strict DOM sanitization.
+### 5.2 Security & Data Integrity
+- **NFR-SEC-01**: Password hashes (`password_hash`) and raw secret keys shall never be exposed in unauthenticated responses; Resend API keys are masked in GET responses (`re_••••`).
+- **NFR-SEC-02**: All SQL queries execute via prepared statements (`db.prepare(...)`) to prevent SQL injection.
+- **NFR-SEC-03**: Foreign key constraints (`PRAGMA foreign_keys = ON`) enforce referential integrity across all 18 tables.
 
-### 5.3 Reliability and Availability
-- **NFR-REL-1**: Relational data integrity must be strictly enforced via Foreign Key constraints with configured cascade rules.
-- **NFR-REL-2**: System state shall be resilient to sudden termination without corrupting database transactions.
-
-### 5.4 Usability & UI Standards
-- **NFR-UI-1**: The interface must adhere to the NexInt Brand Identity:
-  - Primary Brand Navy: `#0F2547`
-  - Accent Cyan-Teal: `#3596B0`
-- **NFR-UI-2**: The application must support comprehensive Light and Dark theme modes with instantaneous user switching.
-- **NFR-UI-3**: Responsive layout must support desktop displays, tablets, and mobile browser viewports.
+### 5.3 Usability & Visual Design
+- **NFR-UI-01**: Adhere to NexInt AI corporate branding (Primary Navy `#0F2547`, Accent Cyan `#3596B0`) with full Light and Dark mode support.
+- **NFR-UI-02**: Provide 1-click CSV export across Leads, Clients, Projects, Payments, Expenses, Resources, and Executive Reports.
 
 ---
 
-## 6. Verification and Acceptance Criteria
+## 6. Complete API Endpoint Reference
 
-| ID | Test Scenario | Acceptance Criteria |
-| :--- | :--- | :--- |
-| **AC-01** | Lead creation with Indian IT service offering | Lead is saved with currency `INR (₹)` and service matching one of the 4 valid types. |
-| **AC-02** | AI Proposal Generation & Send | Dispatched proposal updates lead status to `Proposal sent` and timestamps proposal as `Sent`. |
-| **AC-03** | Project Vendor Cost Deduction | Adding an AWS cost of ₹50,000 to a ₹500,000 project updates project profit to ₹450,000 (90% margin). |
-| **AC-04** | Revenue Tab Aggregation | Aggregates all converted/project deal values grouped by month, year, project, and acquisition source. |
-| **AC-05** | Database Clean State Verification | Seed scripts and reset operations cleanly flush business entities while keeping administrative credentials intact. |
-
----
-
-## 7. Appendix: API Route Reference
-
-| Method | Endpoint | Description | Auth Required |
+| Module | Method | Endpoint | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/login` | Authenticate user & return JWT token | No |
-| `POST` | `/api/auth/register` | Register new user account | No |
-| `GET` | `/api/auth/me` | Fetch authenticated user profile | Yes |
-| `GET` | `/api/leads` | List and filter sales leads | Yes |
-| `POST` | `/api/leads` | Create a new lead | Yes |
-| `POST` | `/api/leads/:id/convert` | Convert lead to client | Yes |
-| `GET` | `/api/proposals` | List all AI proposals | Yes |
-| `POST` | `/api/proposals/generate` | Generate AI proposal HTML | Yes |
-| `POST` | `/api/proposals/:id/send` | Dispatch proposal & update lead status | Yes |
-| `GET` | `/api/projects` | List projects with enriched financials | Yes |
-| `POST` | `/api/projects` | Create a new delivery project | Yes |
-| `POST` | `/api/projects/:id/costs` | Log vendor or resource cost | Yes |
-| `GET` | `/api/revenue/summary` | Fetch monthly, yearly, and grouped revenue | Yes |
-| `GET` | `/api/clients` | List clients and 360 view | Yes |
-| `GET` | `/api/resources` | List staff and allocation metrics | Yes |
-| `GET` | `/api/bau` | Fetch support tickets and SLA states | Yes |
-| `GET` | `/api/feedback` | Fetch CSAT ratings and testimonials | Yes |
+| **Health** | `GET` | `/api/health` | Service liveness & timestamp check |
+| **Auth** | `POST` | `/api/auth/login` | Authenticate user & issue JWT token |
+| **Auth** | `POST` | `/api/auth/register` | Register new user account |
+| **Auth** | `GET` | `/api/auth/me` | Retrieve current authenticated user profile |
+| **Auth** | `GET` | `/api/auth/users` | List all system users for owner/manager assignment |
+| **Dashboard** | `GET` | `/api/dashboard` | Aggregated executive KPIs, funnel, and alerts |
+| **Leads** | `GET / POST` | `/api/leads` | List/filter leads or create a new lead |
+| **Leads** | `PUT / DELETE` | `/api/leads/:id` | Update lead attributes or delete lead |
+| **Leads** | `POST` | `/api/leads/:id/notes` | Append work note & optionally update status/follow-up |
+| **Leads** | `POST` | `/api/leads/:id/move-to-conversion` | Promote lead into the Conversion pipeline |
+| **Conversions** | `GET / PUT` | `/api/conversions`, `/api/conversions/:id` | List conversions or update outcome (`converted`/`not_converted`) |
+| **Clients** | `GET / POST / PUT / DELETE` | `/api/clients`, `/api/clients/:id` | Full Client 360 CRUD & client notes |
+| **Projects** | `GET / POST / PUT / DELETE` | `/api/projects`, `/api/projects/:id` | Project delivery CRUD + AMC contract management |
+| **Projects** | `POST / DELETE` | `/api/projects/:id/costs` | Log or remove project vendor/resource costs |
+| **Timeline** | `GET / POST / PUT / DELETE` | `/api/timeline` | Manage project milestones, tasks, and deliverables |
+| **Proposals** | `POST` | `/api/proposals/generate` | Synthesize dynamic AI HTML proposal |
+| **Proposals** | `POST` | `/api/proposals/:id/send` | Dispatch proposal email via Resend & update lead |
+| **Automation** | `GET / PUT` | `/api/automation/config` | Read or update Resend Cloud API & follow-up settings |
+| **Automation** | `POST` | `/api/automation/test-email` | Dispatch live test email via Resend Cloud API |
+| **Automation** | `POST` | `/api/automation/run-batch` | Execute automated follow-up batch for due leads |
+| **Payments** | `GET / POST / PUT / DELETE` | `/api/payments`, `/api/payments/:id` | Manage client milestone payment phases & invoices |
+| **Expenses** | `GET / POST / PUT / DELETE` | `/api/expenses`, `/api/expenses/:id` | Manage company overhead & project-linked expenses |
+| **Revenue** | `GET` | `/api/revenue` | Monthly/Yearly revenue, vendor cost, and margin analytics |
+| **Reports** | `GET` | `/api/reports/comprehensive` | Consolidated P&L, resource conversions, AMC & ticket SLA metrics |
+| **Resources** | `GET / POST / PUT / DELETE` | `/api/resources`, `/api/resources/:id` | Manage executive & technical resources and assignments |
+| **BAU Desk** | `GET / POST / PUT / DELETE` | `/api/bau-tickets`, `/api/bau-tickets/:id` | Manage post-delivery SLA support tickets |
+| **Feedback** | `GET / POST / PUT / DELETE` | `/api/feedback`, `/api/feedback/:id` | Manage client CSAT ratings & public testimonials |
+| **System** | `GET / POST` | `/api/system/backup`, `/api/system/restore` | Full JSON database snapshot export & restore |
 
+---
+
+## 7. Automated Verification & Test Suite Matrix
+
+NexCRM includes **35 automated integration tests** across **8 test suites** (`npm test --prefix backend`):
+
+| Suite File | Focus Area | Verified Scenarios |
+| :--- | :--- | :--- |
+| [`automation.test.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/__tests__/automation.test.ts) | Auto Email & Follow-up Engine | Stage-aware draft synthesis, Resend dispatch logging, batch runner execution |
+| [`conversion.test.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/__tests__/conversion.test.ts) | Lead → Conversion → Client | Pipeline transition, mandatory loss reason validation, auto-client creation & audit trail |
+| [`dynamic_proposal.test.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/__tests__/dynamic_proposal.test.ts) | AI Proposal Synthesis | Healthcare, Data Lakehouse, E-Commerce domain synthesis & clean NexInt branding |
+| [`expenses.test.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/__tests__/expenses.test.ts) | Company Expenses Ledger | Overhead & project-linked creation, status transitions, aggregation, partial edit validation |
+| [`lead_worknotes.test.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/__tests__/lead_worknotes.test.ts) | Lead Work Notes & Ownership | Author attribution, `followup_resource` persistence through conversion |
+| [`payments.test.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/__tests__/payments.test.ts) | Client Milestone Payments | Phase creation, milestone progress updates, hydration, auto-invoice generation |
+| [`reports.test.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/__tests__/reports.test.ts) | Executive Reports & SLA | Income/expense/margin P&L, resource conversion leaderboard, AMC metrics, support MTTR |
+| [`system_backup.test.ts`](file:///Users/vishaalarun/PycharmProjects/NexCRM/backend/src/__tests__/system_backup.test.ts) | Backup & Restore | Full database snapshot export and relational state restoration |

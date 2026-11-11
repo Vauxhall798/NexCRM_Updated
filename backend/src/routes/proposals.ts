@@ -2902,7 +2902,11 @@ proposalsRouter.post('/generate', async (req: AuthRequest, res: Response) => {
       tone = 'Executive & Consultative',
       api_key = '',
       model = '',
+      discovery_answers = {},
     } = req.body || {};
+
+    const discoveryObj: Record<string, string> =
+      discovery_answers && typeof discovery_answers === 'object' ? discovery_answers : {};
 
     const userPromptStr = String(user_prompt || '').trim();
     let finalCompanyName = String(company_name || '').trim();
@@ -3039,11 +3043,126 @@ proposalsRouter.post('/generate', async (req: AuthRequest, res: Response) => {
 
     let aiCustom: StructuredProposalContent = { ...baseDomainContent };
 
+    // Apply deep discovery questionnaire answers directly into structured proposal content
+    const hasDiscoveryAnswers = Object.values(discoveryObj).some(
+      (v) => typeof v === 'string' && v.trim().length > 0
+    );
+    if (hasDiscoveryAnswers) {
+      if (discoveryObj.target_personas?.trim()) {
+        aiCustom.whoItServes = discoveryObj.target_personas.trim();
+      }
+      if (discoveryObj.integrations_ecosystem?.trim()) {
+        aiCustom.worksWithSummary = discoveryObj.integrations_ecosystem.trim();
+      }
+      if (discoveryObj.ai_automation_needs?.trim()) {
+        aiCustom.aiAndAutomationSummary = discoveryObj.ai_automation_needs.trim();
+      }
+      if (discoveryObj.core_modules_portals?.trim()) {
+        aiCustom.whatSummary = `${finalProjectTitle}: ${discoveryObj.core_modules_portals.trim()}`;
+      }
+
+      // Build customized "What We Heard" items from deep discovery answers
+      const customHeard: Array<{ youSaid: string; today: string }> = [];
+      if (discoveryObj.pain_points_bottlenecks?.trim()) {
+        customHeard.push({
+          youSaid: `Critical Bottlenecks & Pain Points: ${discoveryObj.pain_points_bottlenecks.trim()}`,
+          today: discoveryObj.industry_and_model?.trim()
+            ? `Operating in ${discoveryObj.industry_and_model.trim()} where manual handoffs and legacy silos slow down execution.`
+            : `Legacy processes and manual data entry create operational bottlenecks and delayed decision-making.`,
+        });
+      }
+      if (discoveryObj.core_modules_portals?.trim()) {
+        customHeard.push({
+          youSaid: `Required Core Modules & Portals: ${discoveryObj.core_modules_portals.trim()}`,
+          today: `Stakeholders (${discoveryObj.target_personas?.trim() || 'internal & external teams'}) currently lack a unified self-service workspace.`,
+        });
+      }
+      if (discoveryObj.user_journey_workflow?.trim()) {
+        customHeard.push({
+          youSaid: `End-to-End Target Workflow: ${discoveryObj.user_journey_workflow.trim()}`,
+          today: discoveryObj.approvals_governance?.trim()
+            ? `Governance & Approvals needed: ${discoveryObj.approvals_governance.trim()}`
+            : `Multi-stage handoffs and approvals are currently tracked manually across emails and chat threads.`,
+        });
+      }
+      if (discoveryObj.ai_automation_needs?.trim()) {
+        customHeard.push({
+          youSaid: `AI & Autonomous Intelligence Goals: ${discoveryObj.ai_automation_needs.trim()}`,
+          today: `High-volume repetitive analysis, document parsing, and triage are performed manually by staff.`,
+        });
+      }
+      if (discoveryObj.integrations_ecosystem?.trim()) {
+        customHeard.push({
+          youSaid: `Ecosystem & API Integrations: ${discoveryObj.integrations_ecosystem.trim()}`,
+          today: discoveryObj.data_migration_volume?.trim()
+            ? `Data & Migration Context: ${discoveryObj.data_migration_volume.trim()}`
+            : `Data sits disconnected across third-party systems without real-time bidirectional sync.`,
+        });
+      }
+      if (discoveryObj.security_compliance_cloud?.trim()) {
+        customHeard.push({
+          youSaid: `Architecture, Security & Compliance: ${discoveryObj.security_compliance_cloud.trim()}`,
+          today: `Enterprise-grade RBAC, audit logging, and regulatory guardrails are mandatory from day one.`,
+        });
+      }
+      if (discoveryObj.success_metrics_roi?.trim()) {
+        customHeard.push({
+          youSaid: `Target KPIs & Commercial ROI: ${discoveryObj.success_metrics_roi.trim()}`,
+          today: discoveryObj.rollout_sla_amc?.trim()
+            ? `Rollout & SLA Plan: ${discoveryObj.rollout_sla_amc.trim()}`
+            : `Clear measurable outcomes and post-launch SLA guarantees are required by executive leadership.`,
+        });
+      }
+
+      if (customHeard.length > 0) {
+        const existingHeard = aiCustom.whatWeHeardItems || [];
+        aiCustom.whatWeHeardItems = [
+          ...customHeard,
+          ...existingHeard.slice(0, Math.max(0, 8 - customHeard.length)),
+        ];
+      }
+
+      // Inject custom modules from Q4 if provided
+      if (discoveryObj.core_modules_portals?.trim()) {
+        const parsedModules = discoveryObj.core_modules_portals
+          .split(/\n|;|•|,/)
+          .map((s) => s.replace(/^[-*0-9.)\s]+/, '').trim())
+          .filter((s) => s.length > 3)
+          .slice(0, 5)
+          .map((m) => ({
+            title: m.length > 48 ? `${m.slice(0, 45)}...` : m,
+            desc: `Custom-engineered module for ${finalCompanyName}: ${m} with role-based access and real-time telemetry.`,
+          }));
+        if (parsedModules.length > 0 && aiCustom.modules) {
+          aiCustom.modules = [
+            ...parsedModules,
+            ...aiCustom.modules.slice(0, Math.max(5, 10 - parsedModules.length)),
+          ];
+        }
+      }
+    }
+
+    const discoveryPromptBlock = hasDiscoveryAnswers
+      ? `\nDeep Requirement Discovery Questionnaire Answers:
+- Q1. Industry & Business Model: ${discoveryObj.industry_and_model || 'N/A'}
+- Q2. Pain Points & Bottlenecks: ${discoveryObj.pain_points_bottlenecks || 'N/A'}
+- Q3. Target User Personas: ${discoveryObj.target_personas || 'N/A'}
+- Q4. Core Modules & Portals: ${discoveryObj.core_modules_portals || 'N/A'}
+- Q5. End-to-End User Journey: ${discoveryObj.user_journey_workflow || 'N/A'}
+- Q6. Approvals & Governance Rules: ${discoveryObj.approvals_governance || 'N/A'}
+- Q7. AI & Automation Capabilities: ${discoveryObj.ai_automation_needs || 'N/A'}
+- Q8. Third-Party API Integrations: ${discoveryObj.integrations_ecosystem || 'N/A'}
+- Q9. Data Sources, Volume & Migration: ${discoveryObj.data_migration_volume || 'N/A'}
+- Q10. Cloud, Security & Compliance: ${discoveryObj.security_compliance_cloud || 'N/A'}
+- Q11. Target KPIs & Measurable ROI: ${discoveryObj.success_metrics_roi || 'N/A'}
+- Q12. Phased Rollout & Post-Launch AMC: ${discoveryObj.rollout_sla_amc || 'N/A'}`
+      : '';
+
     // 2. If a Gemini API key is configured or provided, query Gemini for additional custom enrichment
     if (configuredKey) {
       try {
         const prompt = `You are the Proposal Architect at NexInt AI (Chennai, India — "INTELLIGENCE BEYOND DATA").
-Based on the user's prompt and client parameters below, return ONLY valid JSON matching the StructuredProposalContent schema to populate our 16-section NexInt AI proposal template:
+Based on the user's prompt, deep discovery questionnaire answers, and client parameters below, return ONLY valid JSON matching the StructuredProposalContent schema to populate our 16-section NexInt AI proposal template:
 - Client Company: ${finalCompanyName}
 - Recipient: ${finalRecipientName}
 - Project Title: ${finalProjectTitle}
@@ -3051,7 +3170,7 @@ Based on the user's prompt and client parameters below, return ONLY valid JSON m
 - Budget: ${currency} ${budget}
 - Timeline: ${timeline_weeks} weeks
 - User Prompt: ${userPromptStr}
-- Key Requirements: ${finalKeyReqs}
+- Key Requirements: ${finalKeyReqs}${discoveryPromptBlock}
 
 JSON Schema to return:
 {
