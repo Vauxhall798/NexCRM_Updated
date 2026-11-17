@@ -1244,6 +1244,611 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
     </Modal>
   );
 
+  const renderProjectFormModal = () => (
+    <Modal
+      open={modalOpen}
+      onClose={() => setModalOpen(false)}
+      title={editingProject ? `Edit Project — ${editingProject.name}` : 'Add New Project'}
+    >
+      <form onSubmit={handleSaveProject} className="space-y-4">
+        {formError && (
+          <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-700 dark:text-rose-300">
+            {formError}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Project Name *
+            </label>
+            <input
+              type="text"
+              required
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              placeholder="e.g. Cloud Migration & Kubernetes Platform"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Client *
+            </label>
+            <select
+              required
+              value={form.client_id}
+              onChange={(e) => setForm({ ...form, client_id: e.target.value })}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              <option value="">Select client...</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.company} ({c.contact_name})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Service Type *
+            </label>
+            <select
+              value={form.service_type}
+              onChange={(e) => setForm({ ...form, service_type: e.target.value as ServiceType })}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              {SERVICE_TYPES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Status
+            </label>
+            <select
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value as ProjectStatus })}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              {PROJECT_STATUSES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Project Manager
+            </label>
+            <select
+              value={form.manager_id}
+              onChange={(e) => setForm({ ...form, manager_id: e.target.value })}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              <option value="">Unassigned</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Start Date *
+            </label>
+            <input
+              type="date"
+              required
+              value={form.start_date}
+              onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Expected End Date *
+            </label>
+            <input
+              type="date"
+              required
+              value={form.end_date}
+              onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div className="col-span-2">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Budget
+              </label>
+              <input
+                type="number"
+                min={0}
+                value={form.budget}
+                onChange={(e) => setForm({ ...form, budget: e.target.value })}
+                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                Currency
+              </label>
+              <select
+                value={form.currency}
+                onChange={(e) => setForm({ ...form, currency: e.target.value })}
+                className="w-full px-2 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+              >
+                {CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Progress ({Math.min(100, Math.max(0, Number(form.progress || 0)))}%)
+            </label>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={form.progress}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (raw === '') {
+                  setForm({ ...form, progress: '', progress_override: true });
+                  return;
+                }
+                const clamped = Math.min(100, Math.max(0, Math.round(Number(raw) || 0)));
+                setForm({ ...form, progress: String(clamped), progress_override: true });
+              }}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Tech Stack (Tags separated by commas)
+            </label>
+            <input
+              type="text"
+              value={form.tech_stack}
+              onChange={(e) => setForm({ ...form, tech_stack: e.target.value })}
+              placeholder="React, TypeScript, Node.js, AWS, Docker"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Description
+          </label>
+          <textarea
+            rows={2}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            placeholder="Project scope, key deliverables..."
+            className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Internal Notes
+          </label>
+          <textarea
+            rows={2}
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            placeholder="Staging links, repository notes, deployment risks..."
+            className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+          />
+        </div>
+
+        <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                Annual Maintenance Contract (AMC)
+              </span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Track post-delivery SLA maintenance, recurring retainer, and renewal cycle.
+              </p>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.amc_active}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    amc_active: e.target.checked,
+                    amc_status: e.target.checked
+                      ? form.amc_status === 'Not Contracted'
+                        ? 'Active'
+                        : form.amc_status
+                      : 'Not Contracted',
+                  })
+                }
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600" />
+            </label>
+          </div>
+
+          {form.amc_active && (
+            <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/80 space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    AMC Status
+                  </label>
+                  <select
+                    value={form.amc_status}
+                    onChange={(e) =>
+                      setForm({ ...form, amc_status: e.target.value as AmcStatus })
+                    }
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  >
+                    <option value="Active">Active</option>
+                    <option value="Pending Renewal">Pending Renewal</option>
+                    <option value="Expired">Expired</option>
+                    <option value="Not Contracted">Not Contracted</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Annual Fee ({form.currency || 'INR'})
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={500}
+                    value={form.amc_amount}
+                    onChange={(e) => setForm({ ...form, amc_amount: e.target.value })}
+                    placeholder="e.g. 90000"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Billing Cycle
+                  </label>
+                  <select
+                    value={form.amc_billing_cycle}
+                    onChange={(e) =>
+                      setForm({ ...form, amc_billing_cycle: e.target.value as AmcBillingCycle })
+                    }
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  >
+                    <option value="Annual">Annual</option>
+                    <option value="Semi-Annual">Semi-Annual</option>
+                    <option value="Quarterly">Quarterly</option>
+                    <option value="Monthly">Monthly</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    AMC Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={form.amc_start_date}
+                    onChange={(e) => setForm({ ...form, amc_start_date: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    AMC End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={form.amc_end_date}
+                    onChange={(e) => setForm({ ...form, amc_end_date: e.target.value })}
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    SLA Tier
+                  </label>
+                  <select
+                    value={form.amc_sla_tier}
+                    onChange={(e) =>
+                      setForm({ ...form, amc_sla_tier: e.target.value as AmcSlaTier })
+                    }
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  >
+                    <option value="Standard 9x5">Standard 9x5 Support</option>
+                    <option value="24/7 Mission Critical">24/7 Mission Critical</option>
+                    <option value="Basic Support">Basic Support</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Client AMC SPOC
+                  </label>
+                  <input
+                    type="text"
+                    value={form.amc_contact}
+                    onChange={(e) => setForm({ ...form, amc_contact: e.target.value })}
+                    placeholder="e.g. Ramesh Kumar (CTO)"
+                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Maintenance Scope / Deliverables
+                </label>
+                <input
+                  type="text"
+                  value={form.amc_scope}
+                  onChange={(e) => setForm({ ...form, amc_scope: e.target.value })}
+                  placeholder="Uptime monitoring, security patch management, bug fixes up to 20h/mo..."
+                  className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={() => setModalOpen(false)}
+            className="px-4 py-2 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={submitting}
+            className="px-5 py-2 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
+          >
+            {submitting ? 'Saving...' : editingProject ? 'Save Changes' : 'Create Project'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+
+  const renderAmcModal = () => (
+    <Modal
+      open={amcModalOpen}
+      onClose={() => setAmcModalOpen(false)}
+      title={amcTargetProject ? `AMC Support — ${amcTargetProject.name}` : 'AMC Support Contract'}
+      maxWidth="max-w-xl"
+    >
+      <form onSubmit={handleSaveAmc} className="space-y-4">
+        <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
+          <div>
+            <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              Active Maintenance Contract
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Enable post-delivery AMC tracking, SLA guarantees, and recurring annual retainer.
+            </p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              checked={amcForm.amc_active}
+              onChange={(e) =>
+                setAmcForm({
+                  ...amcForm,
+                  amc_active: e.target.checked,
+                  amc_status: e.target.checked
+                    ? amcForm.amc_status === 'Not Contracted'
+                      ? 'Active'
+                      : amcForm.amc_status
+                    : 'Not Contracted',
+                })
+              }
+              className="sr-only peer"
+            />
+            <div className="w-10 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600" />
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Contract Status
+            </label>
+            <select
+              value={amcForm.amc_status}
+              onChange={(e) =>
+                setAmcForm({
+                  ...amcForm,
+                  amc_status: e.target.value as AmcStatus,
+                  amc_active: e.target.value !== 'Not Contracted',
+                })
+              }
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold"
+            >
+              <option value="Active">Active</option>
+              <option value="Pending Renewal">Pending Renewal</option>
+              <option value="Expired">Expired</option>
+              <option value="Not Contracted">Not Contracted</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Annual AMC Fee ({amcTargetProject?.currency || 'INR'})
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={500}
+              value={amcForm.amc_amount}
+              onChange={(e) => setAmcForm({ ...amcForm, amc_amount: e.target.value })}
+              placeholder="e.g. 150000"
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Billing Cycle
+            </label>
+            <select
+              value={amcForm.amc_billing_cycle}
+              onChange={(e) =>
+                setAmcForm({ ...amcForm, amc_billing_cycle: e.target.value as AmcBillingCycle })
+              }
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              <option value="Annual">Annual (100% upfront)</option>
+              <option value="Semi-Annual">Semi-Annual (50% x 2)</option>
+              <option value="Quarterly">Quarterly (25% x 4)</option>
+              <option value="Monthly">Monthly</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              AMC Start Date
+            </label>
+            <input
+              type="date"
+              value={amcForm.amc_start_date}
+              onChange={(e) => setAmcForm({ ...amcForm, amc_start_date: e.target.value })}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                AMC End Date
+              </label>
+              <button
+                type="button"
+                onClick={handleExtendAmcOneYear}
+                className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
+              >
+                +1 Year From Current
+              </button>
+            </div>
+            <input
+              type="date"
+              value={amcForm.amc_end_date}
+              onChange={(e) => setAmcForm({ ...amcForm, amc_end_date: e.target.value })}
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Support &amp; SLA Commitment Tier
+            </label>
+            <select
+              value={amcForm.amc_sla_tier}
+              onChange={(e) =>
+                setAmcForm({ ...amcForm, amc_sla_tier: e.target.value as AmcSlaTier })
+              }
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            >
+              <option value="Standard 9x5">Standard 9x5 Support (&lt;4h response)</option>
+              <option value="24/7 Mission Critical">24/7 Mission Critical (&lt;1h response, dedicated on-call)</option>
+              <option value="Basic Support">Basic Support (Email only, best-effort)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              Client AMC SPOC / Contact
+            </label>
+            <input
+              type="text"
+              value={amcForm.amc_contact}
+              onChange={(e) => setAmcForm({ ...amcForm, amc_contact: e.target.value })}
+              placeholder="e.g. Ramesh Kumar (CTO) — +91 98765 43210"
+              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Deliverables &amp; Maintenance Scope
+          </label>
+          <textarea
+            rows={3}
+            value={amcForm.amc_scope}
+            onChange={(e) => setAmcForm({ ...amcForm, amc_scope: e.target.value })}
+            placeholder="e.g. Bug fixes up to 20h/mo, cloud infrastructure monitoring, security updates, SSL renewals..."
+            className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
+          />
+        </div>
+
+        <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
+          <button
+            type="button"
+            onClick={handleExtendAmcOneYear}
+            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Quick +1 Year Renewal
+          </button>
+          <div className="flex items-center gap-2.5">
+            <button
+              type="button"
+              onClick={() => setAmcModalOpen(false)}
+              className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={amcSubmitting}
+              className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm disabled:opacity-50 cursor-pointer"
+            >
+              {amcSubmitting ? 'Saving AMC...' : 'Save AMC Contract'}
+            </button>
+          </div>
+        </div>
+      </form>
+    </Modal>
+  );
+
   /* Project Detail Page with Tabs: Overview | Costs & Profit | Timeline */
   if (selectedProject) {
     const tags = selectedProject.tech_stack
@@ -1826,6 +2431,8 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
         )}
 
         {renderCostModal()}
+        {renderProjectFormModal()}
+        {renderAmcModal()}
 
         <ConfirmDialog
           open={Boolean(deletingCost)}
@@ -2337,608 +2944,10 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
       {renderCostModal()}
 
       {/* Add / Edit Project Modal */}
-      <Modal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        title={editingProject ? `Edit Project — ${editingProject.name}` : 'Add New Project'}
-      >
-        <form onSubmit={handleSaveProject} className="space-y-4">
-          {formError && (
-            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-xs font-medium text-rose-700 dark:text-rose-300">
-              {formError}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Project Name *
-              </label>
-              <input
-                type="text"
-                required
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Cloud Migration & Kubernetes Platform"
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Client *
-              </label>
-              <select
-                required
-                value={form.client_id}
-                onChange={(e) => setForm({ ...form, client_id: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                <option value="">Select client...</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.company} ({c.contact_name})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Service Type *
-              </label>
-              <select
-                value={form.service_type}
-                onChange={(e) => setForm({ ...form, service_type: e.target.value as ServiceType })}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                {SERVICE_TYPES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Status
-              </label>
-              <select
-                value={form.status}
-                onChange={(e) => setForm({ ...form, status: e.target.value as ProjectStatus })}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                {PROJECT_STATUSES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Project Manager
-              </label>
-              <select
-                value={form.manager_id}
-                onChange={(e) => setForm({ ...form, manager_id: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                <option value="">Unassigned</option>
-                {users.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Start Date *
-              </label>
-              <input
-                type="date"
-                required
-                value={form.start_date}
-                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Expected End Date *
-              </label>
-              <input
-                type="date"
-                required
-                value={form.end_date}
-                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              <div className="col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Budget
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.budget}
-                  onChange={(e) => setForm({ ...form, budget: e.target.value })}
-                  className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                  Currency
-                </label>
-                <select
-                  value={form.currency}
-                  onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                  className="w-full px-2 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                >
-                  {CURRENCIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Progress ({Math.min(100, Math.max(0, Number(form.progress || 0)))}%)
-              </label>
-              <input
-                type="number"
-                min={0}
-                max={100}
-                value={form.progress}
-                onChange={(e) => {
-                  const raw = e.target.value;
-                  if (raw === '') {
-                    setForm({ ...form, progress: '', progress_override: true });
-                    return;
-                  }
-                  const clamped = Math.min(100, Math.max(0, Math.round(Number(raw) || 0)));
-                  setForm({ ...form, progress: String(clamped), progress_override: true });
-                }}
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-
-            <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Tech Stack (Tags separated by commas)
-              </label>
-              <input
-                type="text"
-                value={form.tech_stack}
-                onChange={(e) => setForm({ ...form, tech_stack: e.target.value })}
-                placeholder="React, TypeScript, Node.js, AWS, Docker"
-                className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Description
-            </label>
-            <textarea
-              rows={2}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Project scope, key deliverables..."
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Internal Notes
-            </label>
-            <textarea
-              rows={2}
-              value={form.notes}
-              onChange={(e) => setForm({ ...form, notes: e.target.value })}
-              placeholder="Staging links, repository notes, deployment risks..."
-              className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-            />
-          </div>
-
-          {/* AMC Configuration Card inside Add/Edit Modal */}
-          <div className="p-3.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/50 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <span className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  Annual Maintenance Contract (AMC)
-                </span>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Track post-delivery SLA maintenance, recurring retainer, and renewal cycle.
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.amc_active}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      amc_active: e.target.checked,
-                      amc_status: e.target.checked
-                        ? form.amc_status === 'Not Contracted'
-                          ? 'Active'
-                          : form.amc_status
-                        : 'Not Contracted',
-                    })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600" />
-              </label>
-            </div>
-
-            {form.amc_active && (
-              <div className="pt-2 border-t border-slate-200/80 dark:border-slate-700/80 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      AMC Status
-                    </label>
-                    <select
-                      value={form.amc_status}
-                      onChange={(e) =>
-                        setForm({ ...form, amc_status: e.target.value as AmcStatus })
-                      }
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    >
-                      <option value="Active">Active</option>
-                      <option value="Pending Renewal">Pending Renewal</option>
-                      <option value="Expired">Expired</option>
-                      <option value="Not Contracted">Not Contracted</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Annual Fee (₹)
-                    </label>
-                    <input
-                      type="number"
-                      min={0}
-                      step={500}
-                      value={form.amc_amount}
-                      onChange={(e) => setForm({ ...form, amc_amount: e.target.value })}
-                      placeholder="e.g. 90000"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Billing Cycle
-                    </label>
-                    <select
-                      value={form.amc_billing_cycle}
-                      onChange={(e) =>
-                        setForm({ ...form, amc_billing_cycle: e.target.value as AmcBillingCycle })
-                      }
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    >
-                      <option value="Annual">Annual</option>
-                      <option value="Semi-Annual">Semi-Annual</option>
-                      <option value="Quarterly">Quarterly</option>
-                      <option value="Monthly">Monthly</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      AMC Start Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.amc_start_date}
-                      onChange={(e) => setForm({ ...form, amc_start_date: e.target.value })}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      AMC End Date
-                    </label>
-                    <input
-                      type="date"
-                      value={form.amc_end_date}
-                      onChange={(e) => setForm({ ...form, amc_end_date: e.target.value })}
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      SLA Tier
-                    </label>
-                    <select
-                      value={form.amc_sla_tier}
-                      onChange={(e) =>
-                        setForm({ ...form, amc_sla_tier: e.target.value as AmcSlaTier })
-                      }
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    >
-                      <option value="Standard 9x5">Standard 9x5 Support</option>
-                      <option value="24/7 Mission Critical">24/7 Mission Critical</option>
-                      <option value="Basic Support">Basic Support</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Client AMC SPOC
-                    </label>
-                    <input
-                      type="text"
-                      value={form.amc_contact}
-                      onChange={(e) => setForm({ ...form, amc_contact: e.target.value })}
-                      placeholder="e.g. Ramesh Kumar (CTO)"
-                      className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Maintenance Scope / Deliverables
-                  </label>
-                  <input
-                    type="text"
-                    value={form.amc_scope}
-                    onChange={(e) => setForm({ ...form, amc_scope: e.target.value })}
-                    placeholder="Uptime monitoring, security patch management, bug fixes up to 20h/mo..."
-                    className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-                  />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-200 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={() => setModalOpen(false)}
-              className="px-4 py-2 text-sm font-medium rounded-xl border border-slate-200 dark:border-slate-700"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-5 py-2 text-sm font-semibold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50"
-            >
-              {submitting ? 'Saving...' : editingProject ? 'Save Changes' : 'Create Project'}
-            </button>
-          </div>
-        </form>
-      </Modal>
+      {renderProjectFormModal()}
 
       {/* Quick AMC Contract & Renewal Modal */}
-      <Modal
-        open={amcModalOpen}
-        onClose={() => setAmcModalOpen(false)}
-        title={amcTargetProject ? `AMC Support — ${amcTargetProject.name}` : 'AMC Support Contract'}
-        maxWidth="max-w-xl"
-      >
-        <form onSubmit={handleSaveAmc} className="space-y-4">
-          <div className="flex items-center justify-between p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700">
-            <div>
-              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                Active Maintenance Contract
-              </div>
-              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                Enable post-delivery AMC tracking, SLA guarantees, and recurring annual retainer.
-              </p>
-            </div>
-            <label className="relative inline-flex items-center cursor-pointer">
-              <input
-                type="checkbox"
-                checked={amcForm.amc_active}
-                onChange={(e) =>
-                  setAmcForm({
-                    ...amcForm,
-                    amc_active: e.target.checked,
-                    amc_status: e.target.checked
-                      ? amcForm.amc_status === 'Not Contracted'
-                        ? 'Active'
-                        : amcForm.amc_status
-                      : 'Not Contracted',
-                  })
-                }
-                className="sr-only peer"
-              />
-              <div className="w-10 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-indigo-600" />
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Contract Status
-              </label>
-              <select
-                value={amcForm.amc_status}
-                onChange={(e) =>
-                  setAmcForm({
-                    ...amcForm,
-                    amc_status: e.target.value as AmcStatus,
-                    amc_active: e.target.value !== 'Not Contracted',
-                  })
-                }
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-semibold"
-              >
-                <option value="Active">Active</option>
-                <option value="Pending Renewal">Pending Renewal</option>
-                <option value="Expired">Expired</option>
-                <option value="Not Contracted">Not Contracted</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Annual AMC Fee ({amcTargetProject?.currency || 'INR'})
-              </label>
-              <input
-                type="number"
-                min={0}
-                step={500}
-                value={amcForm.amc_amount}
-                onChange={(e) => setAmcForm({ ...amcForm, amc_amount: e.target.value })}
-                placeholder="e.g. 150000"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-bold"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Billing Cycle
-              </label>
-              <select
-                value={amcForm.amc_billing_cycle}
-                onChange={(e) =>
-                  setAmcForm({ ...amcForm, amc_billing_cycle: e.target.value as AmcBillingCycle })
-                }
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                <option value="Annual">Annual (100% upfront)</option>
-                <option value="Semi-Annual">Semi-Annual (50% x 2)</option>
-                <option value="Quarterly">Quarterly (25% x 4)</option>
-                <option value="Monthly">Monthly</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                AMC Start Date
-              </label>
-              <input
-                type="date"
-                value={amcForm.amc_start_date}
-                onChange={(e) => setAmcForm({ ...amcForm, amc_start_date: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-                  AMC End Date
-                </label>
-                <button
-                  type="button"
-                  onClick={handleExtendAmcOneYear}
-                  className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer"
-                >
-                  +1 Year From Current
-                </button>
-              </div>
-              <input
-                type="date"
-                value={amcForm.amc_end_date}
-                onChange={(e) => setAmcForm({ ...amcForm, amc_end_date: e.target.value })}
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Support &amp; SLA Commitment Tier
-              </label>
-              <select
-                value={amcForm.amc_sla_tier}
-                onChange={(e) =>
-                  setAmcForm({ ...amcForm, amc_sla_tier: e.target.value as AmcSlaTier })
-                }
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              >
-                <option value="Standard 9x5">Standard 9x5 Support (&lt;4h response)</option>
-                <option value="24/7 Mission Critical">24/7 Mission Critical (&lt;1h response, dedicated on-call)</option>
-                <option value="Basic Support">Basic Support (Email only, best-effort)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Client AMC SPOC / Contact
-              </label>
-              <input
-                type="text"
-                value={amcForm.amc_contact}
-                onChange={(e) => setAmcForm({ ...amcForm, amc_contact: e.target.value })}
-                placeholder="e.g. Ramesh Kumar (CTO) — +91 98765 43210"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-              Deliverables &amp; Maintenance Scope
-            </label>
-            <textarea
-              rows={3}
-              value={amcForm.amc_scope}
-              onChange={(e) => setAmcForm({ ...amcForm, amc_scope: e.target.value })}
-              placeholder="e.g. Bug fixes up to 20h/mo, cloud infrastructure monitoring, security updates, SSL renewals..."
-              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100"
-            />
-          </div>
-
-          <div className="flex items-center justify-between pt-3 border-t border-slate-200 dark:border-slate-800">
-            <button
-              type="button"
-              onClick={handleExtendAmcOneYear}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 cursor-pointer"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Quick +1 Year Renewal
-            </button>
-            <div className="flex items-center gap-2.5">
-              <button
-                type="button"
-                onClick={() => setAmcModalOpen(false)}
-                className="px-4 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={amcSubmitting}
-                className="inline-flex items-center gap-1.5 px-5 py-2 text-xs font-bold rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm disabled:opacity-50 cursor-pointer"
-              >
-                {amcSubmitting ? 'Saving AMC...' : 'Save AMC Contract'}
-              </button>
-            </div>
-          </div>
-        </form>
-      </Modal>
+      {renderAmcModal()}
 
       <ConfirmDialog
         open={Boolean(deletingProject)}

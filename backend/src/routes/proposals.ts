@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { Router } from '../lib/http-app.ts';
 import type { Response } from '../lib/http-app.ts';
 import { prisma } from '../lib/prisma.ts';
+import { sendCrmEmail } from '../lib/mailer.ts';
 import { requireAuth } from '../middleware/auth.ts';
 import type { AuthRequest } from '../middleware/auth.ts';
 
@@ -3451,7 +3452,45 @@ proposalsRouter.post('/', async (req: AuthRequest, res: Response) => {
       });
     }
 
-    res.status(201).json({ proposal: created });
+    let emailResult: any = null;
+    if (isSent && created.recipient_email) {
+      const subjectToSend =
+        created.email_subject ||
+        `Proposal ${proposalNumber}: ${created.project_title} — NexInt AI`;
+      const bodyTextToSend =
+        created.email_body ||
+        `Dear ${created.recipient_name || created.company_name},\n\nPlease find our interactive proposal for "${created.project_title}" attached below.\n\nWarm regards,\n${req.user?.name || 'NexInt AI Team'}`;
+      const htmlToSend =
+        created.html_proposal ||
+        `<div style="font-family:sans-serif;white-space:pre-line;">${bodyTextToSend}</div>`;
+
+      emailResult = await sendCrmEmail({
+        to: created.recipient_email,
+        toName: created.recipient_name || created.company_name,
+        subject: subjectToSend,
+        text: bodyTextToSend,
+        html: htmlToSend,
+        fromName: req.user?.name || 'NexInt AI Team',
+      });
+
+      await prisma.emailLog.create({
+        data: {
+          lead_id: created.lead_id || null,
+          client_id: created.client_id || null,
+          recipient_email: created.recipient_email,
+          recipient_name: created.recipient_name || created.company_name,
+          subject: subjectToSend,
+          body: bodyTextToSend,
+          status: emailResult.status || 'Sent',
+          provider: emailResult.provider || 'CRM Mailer',
+          error_message: emailResult.error || '',
+          sent_by: req.user?.id || null,
+          sent_at: new Date().toISOString(),
+        },
+      });
+    }
+
+    res.status(201).json({ proposal: created, email_result: emailResult });
   } catch (err) {
     console.error('Error saving proposal:', err);
     res.status(500).json({ error: 'Failed to save proposal' });
@@ -3517,7 +3556,45 @@ proposalsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
       }
     }
 
-    res.json({ proposal: updated });
+    let emailResult: any = null;
+    if (isSent && updated.recipient_email) {
+      const subjectToSend =
+        updated.email_subject ||
+        `Proposal ${updated.proposal_number}: ${updated.project_title} — NexInt AI`;
+      const bodyTextToSend =
+        updated.email_body ||
+        `Dear ${updated.recipient_name || updated.company_name},\n\nPlease find our interactive proposal for "${updated.project_title}" attached below.\n\nWarm regards,\n${req.user?.name || 'NexInt AI Team'}`;
+      const htmlToSend =
+        updated.html_proposal ||
+        `<div style="font-family:sans-serif;white-space:pre-line;">${bodyTextToSend}</div>`;
+
+      emailResult = await sendCrmEmail({
+        to: updated.recipient_email,
+        toName: updated.recipient_name || updated.company_name,
+        subject: subjectToSend,
+        text: bodyTextToSend,
+        html: htmlToSend,
+        fromName: req.user?.name || 'NexInt AI Team',
+      });
+
+      await prisma.emailLog.create({
+        data: {
+          lead_id: updated.lead_id || null,
+          client_id: updated.client_id || null,
+          recipient_email: updated.recipient_email,
+          recipient_name: updated.recipient_name || updated.company_name,
+          subject: subjectToSend,
+          body: bodyTextToSend,
+          status: emailResult.status || 'Sent',
+          provider: emailResult.provider || 'CRM Mailer',
+          error_message: emailResult.error || '',
+          sent_by: req.user?.id || null,
+          sent_at: new Date().toISOString(),
+        },
+      });
+    }
+
+    res.json({ proposal: updated, email_result: emailResult });
   } catch (err) {
     console.error('Error updating proposal:', err);
     res.status(500).json({ error: 'Failed to update proposal' });

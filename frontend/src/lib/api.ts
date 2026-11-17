@@ -5,11 +5,21 @@ let hydrationChecked = false;
 let hydrationPromise: Promise<void> | null = null;
 let backupTimer: ReturnType<typeof setTimeout> | null = null;
 
+const getCache = new Map<string, { data: unknown; timestamp: number }>();
+const inFlightGetRequests = new Map<string, Promise<unknown>>();
+const CACHE_TTL_MS = 12_000;
+
+export function clearApiCache(): void {
+  getCache.clear();
+  inFlightGetRequests.clear();
+}
+
 export function getToken(): string | null {
   return localStorage.getItem('nexcrm_token');
 }
 
 export function setToken(token: string | null): void {
+  clearApiCache();
   if (token) {
     localStorage.setItem('nexcrm_token', token);
   } else {
@@ -146,7 +156,22 @@ export async function apiFetch<T>(
     !path.startsWith('/auth') &&
     !path.startsWith('/system')
   ) {
-    await ensureHydratedFromSnapshotIfNeeded(token);
+    // Run snapshot hydration check once per session without blocking subsequent module switches
+    if (!hydrationChecked) {
+      await ensureHydratedFromSnapshotIfNeeded(token);
+    }
+
+    const cached = getCache.get(path);
+    if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+      return cached.data as T;
+    }
+
+    const inFlight = inFlightGetRequests.get(path);
+    if (inFlight) {
+      return (await inFlight) as T;
+    }
+  } else if (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') {
+    clearApiCache();
   }
 
   const headers: Record<string, string> = {
@@ -158,30 +183,45 @@ export async function apiFetch<T>(
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
+  const performFetch = async (): Promise<T> => {
+    const response = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      headers,
+    });
 
-  const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => ({}));
 
-  if (!response.ok) {
-    throw new ApiError(
-      data.error || `Request failed with status ${response.status}`,
-      response.status,
-      data
-    );
+    if (!response.ok) {
+      throw new ApiError(
+        data.error || `Request failed with status ${response.status}`,
+        response.status,
+        data
+      );
+    }
+
+    if (method === 'GET') {
+      getCache.set(path, { data, timestamp: Date.now() });
+    } else if (
+      token &&
+      (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') &&
+      !path.startsWith('/auth') &&
+      !path.startsWith('/proposals/generate') &&
+      !path.startsWith('/automation/generate-draft')
+    ) {
+      clearApiCache();
+      scheduleAutoBackupSnapshot();
+    }
+
+    return data as T;
+  };
+
+  if (method === 'GET') {
+    const promise = performFetch().finally(() => {
+      inFlightGetRequests.delete(path);
+    });
+    inFlightGetRequests.set(path, promise);
+    return promise;
   }
 
-  if (
-    token &&
-    (method === 'POST' || method === 'PUT' || method === 'DELETE' || method === 'PATCH') &&
-    !path.startsWith('/auth') &&
-    !path.startsWith('/proposals/generate') &&
-    !path.startsWith('/automation/generate-draft')
-  ) {
-    scheduleAutoBackupSnapshot();
-  }
-
-  return data as T;
+  return performFetch();
 }

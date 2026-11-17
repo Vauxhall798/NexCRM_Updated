@@ -112,17 +112,20 @@ paymentsRouter.get('/', async (req: AuthRequest, res: Response) => {
       if (p.status === 'Paid') {
         total_collected += paid > 0 ? paid : amt;
         paid_phases++;
-      } else {
+      } else if (p.status === 'Partially Paid') {
         pending_phases++;
-        if (paid > 0) {
-          total_collected += paid;
-          total_pending += Math.max(0, amt - paid);
-        } else {
-          total_pending += amt;
-        }
-
+        const partialPaid = Math.min(amt, Math.max(0, paid));
+        total_collected += partialPaid;
+        total_pending += Math.max(0, amt - partialPaid);
         if (p.is_overdue) {
-          total_overdue += Math.max(0, amt - paid);
+          total_overdue += Math.max(0, amt - partialPaid);
+        }
+      } else {
+        // Pending, Invoiced, or Overdue: full amount is pending
+        pending_phases++;
+        total_pending += amt;
+        if (p.is_overdue) {
+          total_overdue += amt;
         }
       }
     }
@@ -152,7 +155,12 @@ paymentsRouter.get('/', async (req: AuthRequest, res: Response) => {
       }
       const group = projectMap.get(projId);
       const amt = Number(p.amount || 0);
-      const paid = p.status === 'Paid' ? (Number(p.paid_amount || 0) || amt) : Number(p.paid_amount || 0);
+      const paid =
+        p.status === 'Paid'
+          ? Number(p.paid_amount || 0) || amt
+          : p.status === 'Partially Paid'
+          ? Number(p.paid_amount || 0)
+          : 0;
       group.total_phases_amount += amt;
       group.total_collected += paid;
       group.phases.push(p);
@@ -219,12 +227,15 @@ paymentsRouter.post('/', async (req: AuthRequest, res: Response) => {
       percentage = Math.round((data.amount / project.budget) * 1000) / 10;
     }
 
-    // If marked Paid, auto-fill paid_amount and paid_date if missing
+    // If marked Paid, auto-fill paid_amount and paid_date if missing; if Pending/Invoiced/Overdue, ensure paid_amount is 0
     let paid_date = data.paid_date ? new Date(data.paid_date).toISOString() : null;
     let paid_amount = data.paid_amount || 0;
     if (data.status === 'Paid') {
       if (!paid_date) paid_date = new Date().toISOString();
       if (!paid_amount || paid_amount === 0) paid_amount = data.amount;
+    } else if (data.status === 'Pending' || data.status === 'Invoiced' || data.status === 'Overdue') {
+      paid_amount = 0;
+      paid_date = null;
     }
 
     let invoice_number = data.invoice_number?.trim() || '';
@@ -418,18 +429,28 @@ paymentsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
         if (!updateData.invoice_number && !existing.invoice_number) {
           updateData.invoice_number = generateInvoiceNumber(existing.phase_number || 1);
         }
-      } else if (data.status === 'Pending' || data.status === 'Invoiced') {
-        if (data.paid_date === null) updateData.paid_date = null;
-        if (data.paid_amount !== undefined) updateData.paid_amount = data.paid_amount;
+      } else if (data.status === 'Pending' || data.status === 'Invoiced' || data.status === 'Overdue') {
+        updateData.paid_date = null;
+        updateData.paid_amount = 0;
         if (data.status === 'Invoiced' && !updateData.invoice_number && !existing.invoice_number) {
           updateData.invoice_number = generateInvoiceNumber(existing.phase_number || 1);
         }
+      } else if (data.status === 'Partially Paid') {
+        if (data.paid_date !== undefined) {
+          updateData.paid_date = data.paid_date ? new Date(data.paid_date).toISOString() : null;
+        }
+        if (data.paid_amount !== undefined) updateData.paid_amount = data.paid_amount;
       }
     } else {
-      if (data.paid_date !== undefined) {
-        updateData.paid_date = data.paid_date ? new Date(data.paid_date).toISOString() : null;
+      if (existing.status === 'Pending' || existing.status === 'Invoiced' || existing.status === 'Overdue') {
+        updateData.paid_amount = 0;
+        updateData.paid_date = null;
+      } else {
+        if (data.paid_date !== undefined) {
+          updateData.paid_date = data.paid_date ? new Date(data.paid_date).toISOString() : null;
+        }
+        if (data.paid_amount !== undefined) updateData.paid_amount = data.paid_amount;
       }
-      if (data.paid_amount !== undefined) updateData.paid_amount = data.paid_amount;
     }
 
     const updated = await prisma.clientPayment.update({

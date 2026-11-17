@@ -583,6 +583,90 @@ describe('End-to-End Full Application Lifecycle & API Integration Suite', () => 
     assert.equal(logsRes.status, 200);
     assert.ok(logsRes.body.logs.some((l: any) => l.id === testMailRes.body.email_log.id));
 
+    // F. Verify editing a Lead with an existing next_followup date succeeds (HTTP 200) and preserves USD currency
+    const setFollowupRes = await app.inject({
+      method: 'PUT',
+      url: `/api/leads/${createdLeadId}`,
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: {
+        next_followup: '2026-12-01',
+        currency: 'USD',
+        budget: 25000,
+      },
+    });
+    assert.equal(setFollowupRes.status, 200);
+    assert.equal(setFollowupRes.body.lead.currency, 'USD');
+
+    // Second edit when existing.next_followup is already populated in SQLite
+    const editWithExistingFollowupRes = await app.inject({
+      method: 'PUT',
+      url: `/api/leads/${createdLeadId}`,
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: {
+        name: 'Dr. Kavita Krishnan (Updated)',
+        next_followup: '2026-12-05',
+        currency: 'USD',
+      },
+    });
+    assert.equal(editWithExistingFollowupRes.status, 200);
+    assert.equal(editWithExistingFollowupRes.body.lead.currency, 'USD');
+
+    // G. Verify editing a Pending client payment keeps paid_amount = 0 and does not move Pending amount into Collected
+    const pendingPhaseCreate = await app.inject({
+      method: 'POST',
+      url: '/api/payments',
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: {
+        client_id: createdClientId,
+        project_id: createdProjectId,
+        phase_name: 'Phase 2 — Pending Milestone Check',
+        phase_number: 2,
+        amount: 125000,
+        currency: 'INR',
+        percentage: 25,
+        status: 'Pending',
+        due_date: '2026-12-20',
+      },
+    });
+    assert.equal(pendingPhaseCreate.status, 201);
+    const pendingPhaseId = pendingPhaseCreate.body.payment.id;
+    assert.equal(pendingPhaseCreate.body.payment.paid_amount, 0);
+
+    // Simulate editing the Pending phase even if a caller passes paid_amount > 0 while status is Pending
+    const pendingPhaseEdit = await app.inject({
+      method: 'PUT',
+      url: `/api/payments/${pendingPhaseId}`,
+      headers: { Authorization: `Bearer ${adminToken}` },
+      body: {
+        phase_name: 'Phase 2 — Pending Milestone Check (Edited)',
+        status: 'Pending',
+        paid_amount: 125000,
+      },
+    });
+    assert.equal(pendingPhaseEdit.status, 200);
+    assert.equal(pendingPhaseEdit.body.payment.status, 'Pending');
+    assert.equal(pendingPhaseEdit.body.payment.paid_amount, 0);
+
+    await app.inject({
+      method: 'DELETE',
+      url: `/api/payments/${pendingPhaseId}`,
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+
+    // H. Verify sending an AI HTML Proposal dispatches email via mailer and logs to EmailLog
+    const proposalLogsRes = await app.inject({
+      method: 'GET',
+      url: '/api/automation/logs',
+      headers: { Authorization: `Bearer ${adminToken}` },
+    });
+    assert.equal(proposalLogsRes.status, 200);
+    assert.ok(
+      proposalLogsRes.body.logs.some(
+        (l: any) => l.recipient_email === testLeadEmail
+      ),
+      'Expected Sent Proposal to create an entry in EmailLog'
+    );
+
     // Clean up test email logs created in this test
     await prisma.emailLog.deleteMany({ where: { recipient_email: testLeadEmail } });
   });

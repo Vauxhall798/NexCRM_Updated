@@ -387,6 +387,13 @@ leadsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
   }
 
   const workNote = typeof req.body.work_note === 'string' ? req.body.work_note.trim() : '';
+  const prevFollowupIso = existing.next_followup
+    ? new Date(existing.next_followup).toISOString().split('T')[0]
+    : null;
+  const nextFollowupIso = data.next_followup
+    ? new Date(data.next_followup).toISOString().split('T')[0]
+    : null;
+
   if (workNote) {
     await prisma.leadNote.create({
       data: {
@@ -397,9 +404,7 @@ leadsRouter.put('/:id', async (req: AuthRequest, res: Response) => {
     });
   } else if (
     data.next_followup !== undefined &&
-    ((data.next_followup === null && existing.next_followup !== null) ||
-      (data.next_followup !== null &&
-        existing.next_followup?.toISOString() !== new Date(data.next_followup).toISOString()))
+    prevFollowupIso !== nextFollowupIso
   ) {
     const followupText = data.next_followup
       ? `Follow-up scheduled for ${new Date(data.next_followup).toLocaleDateString('en-US', {

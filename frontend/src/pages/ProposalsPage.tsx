@@ -830,18 +830,27 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
       };
 
       let savedProposal: Proposal;
+      let emailResult: { delivered?: boolean; provider?: string; error?: string } | null = null;
       if (activeProposalId) {
-        const updated = await apiFetch<{ proposal: Proposal }>(`/proposals/${activeProposalId}`, {
+        const updated = await apiFetch<{
+          proposal: Proposal;
+          email_result?: { delivered?: boolean; provider?: string; error?: string } | null;
+        }>(`/proposals/${activeProposalId}`, {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
         savedProposal = updated.proposal;
+        emailResult = updated.email_result || null;
       } else {
-        const created = await apiFetch<{ proposal: Proposal }>('/proposals', {
+        const created = await apiFetch<{
+          proposal: Proposal;
+          email_result?: { delivered?: boolean; provider?: string; error?: string } | null;
+        }>('/proposals', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
         savedProposal = created.proposal;
+        emailResult = created.email_result || null;
         setActiveProposalId(created.proposal.id);
       }
 
@@ -850,11 +859,18 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
       }
 
       if (targetStatus === 'Sent') {
-        showToast(
-          savedProposal.lead_id
-            ? `Proposal sent to ${recipientName} <${recipientEmail}> — Lead status changed to "Proposal sent"!`
-            : `Interactive HTML Proposal Mail sent to ${recipientName} <${recipientEmail}>!`
-        );
+        if (emailResult && emailResult.delivered === false && emailResult.error) {
+          showToast(
+            `Proposal saved & logged! Live email note: ${emailResult.error}. You can also click "Open in Gmail" to send directly.`,
+            'info'
+          );
+        } else {
+          showToast(
+            savedProposal.lead_id
+              ? `Proposal sent to ${recipientName} <${recipientEmail}> — Lead status changed to "Proposal sent"!`
+              : `Interactive HTML Proposal Mail sent to ${recipientName} <${recipientEmail}>!`
+          );
+        }
       } else {
         showToast(`Saved proposal draft for ${companyName}.`, 'info');
       }
@@ -1817,7 +1833,21 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
                 Recipient: <strong className="text-slate-800 dark:text-slate-200">{recipientEmail}</strong>
               </div>
 
-              <div className="flex items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <a
+                  href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                    recipientEmail.trim()
+                  )}&su=${encodeURIComponent(emailSubject.trim())}&body=${encodeURIComponent(
+                    emailBody
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold border border-indigo-200 dark:border-indigo-800 bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition-colors"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  Open in Gmail
+                </a>
+
                 <button
                   type="button"
                   onClick={() => handleSaveOrSend('Draft')}

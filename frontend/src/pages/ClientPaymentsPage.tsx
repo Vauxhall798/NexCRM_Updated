@@ -641,7 +641,12 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
       status: payment.status,
       due_date: toInputDate(payment.due_date),
       paid_date: payment.paid_date ? toInputDate(payment.paid_date) : '',
-      paid_amount: String(payment.paid_amount || payment.amount || 0),
+      paid_amount:
+        payment.status === 'Paid'
+          ? String(payment.paid_amount || payment.amount || 0)
+          : payment.status === 'Partially Paid'
+          ? String(payment.paid_amount || 0)
+          : '0',
       invoice_number: payment.invoice_number || '',
       payment_method: payment.payment_method || 'Bank Transfer / NEFT',
       transaction_ref: payment.transaction_ref || '',
@@ -687,8 +692,16 @@ export const ClientPaymentsPage: React.FC<ClientPaymentsPageProps> = ({
         percentage: Number(form.percentage) || 0,
         status: form.status,
         due_date: form.due_date,
-        paid_date: form.paid_date || null,
-        paid_amount: form.status === 'Paid' ? (Number(form.paid_amount) || amountNum) : Number(form.paid_amount || 0),
+        paid_date:
+          form.status === 'Paid' || form.status === 'Partially Paid'
+            ? form.paid_date || null
+            : null,
+        paid_amount:
+          form.status === 'Paid'
+            ? Number(form.paid_amount) || amountNum
+            : form.status === 'Partially Paid'
+            ? Number(form.paid_amount || 0)
+            : 0,
         invoice_number: form.invoice_number.trim(),
         payment_method: form.payment_method,
         transaction_ref: form.transaction_ref.trim(),

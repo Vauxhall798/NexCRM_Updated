@@ -328,30 +328,27 @@ db.exec(`
     FOREIGN KEY ("created_by") REFERENCES "User"("id") ON DELETE SET NULL
   );
 
-  -- Migrate any legacy non-INR records to INR for Indian IT company standardization
-  UPDATE "ProjectCost"
-  SET "amount" = "amount" * 10
-  WHERE "project_id" IN (SELECT "id" FROM "Project" WHERE "currency" != 'INR');
+  -- Clean up any legacy Pending/Invoiced/Overdue payments that erroneously stored paid_amount > 0
+  UPDATE "ClientPayment"
+  SET "paid_amount" = 0,
+      "paid_date" = NULL
+  WHERE "status" IN ('Pending', 'Invoiced', 'Overdue') AND "paid_amount" > 0;
 
-  UPDATE "Project"
-  SET "budget" = CASE WHEN "budget" < 250000 THEN "budget" * 10 ELSE "budget" END,
-      "currency" = 'INR'
-  WHERE "currency" != 'INR';
-
-  UPDATE "Lead"
-  SET "budget" = CASE WHEN "budget" < 250000 THEN "budget" * 10 ELSE "budget" END,
-      "currency" = 'INR'
-  WHERE "currency" != 'INR';
-
-  UPDATE "Conversion"
-  SET "deal_value" = CASE WHEN "deal_value" IS NOT NULL AND "deal_value" < 250000 THEN "deal_value" * 10 ELSE "deal_value" END,
-      "currency" = 'INR'
-  WHERE "currency" != 'INR';
-
-  UPDATE "Proposal"
-  SET "budget" = CASE WHEN "budget" < 250000 THEN "budget" * 10 ELSE "budget" END,
-      "currency" = 'INR'
-  WHERE "currency" != 'INR';
+  -- Performance indexes for fast module switching and query execution
+  CREATE INDEX IF NOT EXISTS "idx_lead_status_created" ON "Lead"("status", "created_at");
+  CREATE INDEX IF NOT EXISTS "idx_lead_owner" ON "Lead"("owner_id");
+  CREATE INDEX IF NOT EXISTS "idx_leadnote_lead" ON "LeadNote"("lead_id");
+  CREATE INDEX IF NOT EXISTS "idx_client_status_created" ON "Client"("status", "created_at");
+  CREATE INDEX IF NOT EXISTS "idx_client_lead" ON "Client"("lead_id");
+  CREATE INDEX IF NOT EXISTS "idx_project_client_status" ON "Project"("client_id", "status");
+  CREATE INDEX IF NOT EXISTS "idx_projectcost_project" ON "ProjectCost"("project_id");
+  CREATE INDEX IF NOT EXISTS "idx_allocation_project_resource" ON "ResourceAssignment"("project_id", "resource_id");
+  CREATE INDEX IF NOT EXISTS "idx_timeline_project" ON "TimelineEntry"("project_id");
+  CREATE INDEX IF NOT EXISTS "idx_ticket_client_state" ON "BauTicket"("client_id", "state");
+  CREATE INDEX IF NOT EXISTS "idx_payment_project_status" ON "ClientPayment"("project_id", "status");
+  CREATE INDEX IF NOT EXISTS "idx_expense_date" ON "Expense"("expense_date");
+  CREATE INDEX IF NOT EXISTS "idx_proposal_created" ON "Proposal"("created_at");
+  CREATE INDEX IF NOT EXISTS "idx_emaillog_sent" ON "EmailLog"("sent_at");
 
   UPDATE "Resource"
   SET "hourly_rate" = "hourly_rate" * 20
