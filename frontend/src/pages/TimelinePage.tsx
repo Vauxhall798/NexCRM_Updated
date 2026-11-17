@@ -94,33 +94,65 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
   const [manualProgress, setManualProgress] = useState(0);
   const [useManualOverride, setUseManualOverride] = useState(false);
 
-  const loadProjects = async () => {
+  const loadProjects = async (silent = false) => {
+    if (!silent && projects.length === 0) {
+      setLoading(true);
+    }
     try {
       const res = await apiFetch<{ projects: Project[] }>('/projects');
-      setProjects(res.projects);
+      const fetchedProjects = res.projects || [];
+      setProjects(fetchedProjects);
+
+      let targetId = selectedProjectId;
       if (embeddedProjectId) {
-        setSelectedProjectId(embeddedProjectId);
+        targetId = embeddedProjectId;
       } else if (initialProjectId) {
-        setSelectedProjectId(initialProjectId);
+        targetId = initialProjectId;
         onClearInitialId?.();
-      } else if (!selectedProjectId && res.projects.length > 0) {
-        setSelectedProjectId(res.projects[0].id);
+      } else if (!targetId && fetchedProjects.length > 0) {
+        targetId = fetchedProjects[0].id;
+      }
+
+      if (targetId !== selectedProjectId) {
+        setSelectedProjectId(targetId);
+      }
+
+      // Immediately hydrate timeline entries from the project payload so there is zero waterfall delay
+      const matchedProject = fetchedProjects.find((p) => p.id === targetId);
+      if (matchedProject && Array.isArray(matchedProject.timeline_entries)) {
+        setEntries(matchedProject.timeline_entries);
+        setLoading(false);
+      } else if (targetId) {
+        await loadTimeline(targetId);
+      } else {
+        setEntries([]);
+        setLoading(false);
       }
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to load projects', 'error');
+      setLoading(false);
     }
   };
 
-  const loadTimeline = async (projId: string) => {
+  const loadTimeline = async (projId: string, silent = false) => {
     if (!projId) {
       setEntries([]);
       setLoading(false);
       return;
     }
-    setLoading(true);
+    const cachedProject = projects.find((p) => p.id === projId);
+    if (cachedProject && Array.isArray(cachedProject.timeline_entries)) {
+      setEntries(cachedProject.timeline_entries);
+      setLoading(false);
+    } else if (!silent) {
+      setLoading(true);
+    }
     try {
       const res = await apiFetch<{ entries: TimelineEntry[] }>(`/timeline?project_id=${projId}`);
       setEntries(res.entries);
+      setProjects((prev) =>
+        prev.map((p) => (p.id === projId ? { ...p, timeline_entries: res.entries } : p))
+      );
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to load timeline', 'error');
     } finally {
@@ -134,7 +166,17 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
 
   useEffect(() => {
     if (selectedProjectId) {
-      loadTimeline(selectedProjectId);
+      const matched = projects.find((p) => p.id === selectedProjectId);
+      if (matched && Array.isArray(matched.timeline_entries)) {
+        setEntries(matched.timeline_entries);
+        setLoading(false);
+        // Refresh silently in background only if needed
+        loadTimeline(selectedProjectId, true);
+      } else {
+        loadTimeline(selectedProjectId);
+      }
+    } else if (projects.length === 0) {
+      setLoading(false);
     }
   }, [selectedProjectId]);
 
@@ -206,22 +248,24 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
       };
 
       if (editingEntry) {
-        await apiFetch(`/timeline/${editingEntry.id}`, {
+        const res = await apiFetch<{ entry: TimelineEntry }>(`/timeline/${editingEntry.id}`, {
           method: 'PUT',
           body: JSON.stringify(payload),
         });
+        setEntries((prev) => prev.map((item) => (item.id === editingEntry.id ? res.entry : item)));
         showToast(`Updated timeline entry "${form.title}"`);
       } else {
-        await apiFetch('/timeline', {
+        const res = await apiFetch<{ entry: TimelineEntry }>('/timeline', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
+        setEntries((prev) => [...prev, res.entry]);
         showToast(`Added timeline entry "${form.title}"`);
       }
 
       setModalOpen(false);
-      await loadTimeline(selectedProjectId);
-      await loadProjects();
+      loadTimeline(selectedProjectId, true);
+      loadProjects(true);
       onProjectUpdated?.();
     } catch (err) {
       setFormError(err instanceof Error ? err.message : 'Failed to save timeline entry');
@@ -231,17 +275,22 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
   };
 
   const handleQuickStatusChange = async (entry: TimelineEntry, newStatus: TimelineStatus) => {
+    // Optimistic UI update for instant feedback
+    setEntries((prev) =>
+      prev.map((item) => (item.id === entry.id ? { ...item, status: newStatus } : item))
+    );
     try {
       await apiFetch(`/timeline/${entry.id}`, {
         method: 'PUT',
         body: JSON.stringify({ status: newStatus }),
       });
-      await loadTimeline(selectedProjectId);
-      await loadProjects();
+      loadTimeline(selectedProjectId, true);
+      loadProjects(true);
       onProjectUpdated?.();
       showToast(`Marked "${entry.title}" as ${newStatus}`);
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to update status', 'error');
+      loadTimeline(selectedProjectId, true);
     }
   };
 
@@ -264,7 +313,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
       });
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to reorder entries', 'error');
-      loadTimeline(selectedProjectId);
+      loadTimeline(selectedProjectId, true);
     }
   };
 
@@ -272,11 +321,14 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
     if (!deletingEntry) return;
     setDeletingLoading(true);
     try {
-      await apiFetch(`/timeline/${deletingEntry.id}`, { method: 'DELETE' });
-      showToast(`Deleted timeline entry "${deletingEntry.title}"`);
+      const removedId = deletingEntry.id;
+      const removedTitle = deletingEntry.title;
+      await apiFetch(`/timeline/${removedId}`, { method: 'DELETE' });
+      setEntries((prev) => prev.filter((item) => item.id !== removedId));
+      showToast(`Deleted timeline entry "${removedTitle}"`);
       setDeletingEntry(null);
-      await loadTimeline(selectedProjectId);
-      await loadProjects();
+      loadTimeline(selectedProjectId, true);
+      loadProjects(true);
       onProjectUpdated?.();
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'Failed to delete entry', 'error');
@@ -297,7 +349,7 @@ export const TimelinePage: React.FC<TimelinePageProps> = ({
         }),
       });
       setOverrideModalOpen(false);
-      await loadProjects();
+      loadProjects(true);
       onProjectUpdated?.();
       showToast(
         useManualOverride

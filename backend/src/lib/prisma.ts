@@ -912,18 +912,23 @@ function sortRows(rows: any[], orderBy?: any): any[] {
   });
 }
 
-function getAllRows(table: string): any[] {
-  const rows = db.prepare(`SELECT * FROM "${table}"`).all() as any[];
+function normalizeRowBooleans(table: string, row: any): any {
+  if (!row) return row;
   if (table === 'Project') {
-    return rows.map((r) => ({ ...r, progress_override: Boolean(r.progress_override) }));
+    return { ...row, progress_override: Boolean(row.progress_override) };
   }
   if (table === 'Feedback') {
-    return rows.map((r) => ({ ...r, is_testimonial: Boolean(r.is_testimonial) }));
+    return { ...row, is_testimonial: Boolean(row.is_testimonial) };
   }
   if (table === 'Resource') {
-    return rows.map((r) => ({ ...r, on_leave: Boolean(r.on_leave) }));
+    return { ...row, on_leave: Boolean(row.on_leave) };
   }
-  return rows;
+  return row;
+}
+
+function getAllRows(table: string): any[] {
+  const rows = db.prepare(`SELECT * FROM "${table}"`).all() as any[];
+  return rows.map((r) => normalizeRowBooleans(table, r));
 }
 
 function hydrateRelations(table: string, row: any, include?: Record<string, any>): any {
@@ -1238,7 +1243,22 @@ function hydrateRelations(table: string, row: any, include?: Record<string, any>
 function createModelDelegate(table: string, defaults: () => Record<string, any>) {
   return {
     async findMany(args: any = {}): Promise<any[]> {
-      let rows = getAllRows(table).filter((r) => matchesWhere(r, args.where));
+      let rows: any[];
+      const w = args.where;
+      // Fast indexed SQL path when querying by a single foreign key / id column
+      if (
+        w &&
+        Object.keys(w).length === 1 &&
+        typeof Object.values(w)[0] === 'string' &&
+        /^[a-zA-Z0-9_]+$/.test(Object.keys(w)[0])
+      ) {
+        const col = Object.keys(w)[0];
+        const val = Object.values(w)[0] as string;
+        const raw = db.prepare(`SELECT * FROM "${table}" WHERE "${col}" = ?`).all(val) as any[];
+        rows = raw.map((r) => normalizeRowBooleans(table, r));
+      } else {
+        rows = getAllRows(table).filter((r) => matchesWhere(r, args.where));
+      }
       if (args.orderBy) rows = sortRows(rows, args.orderBy);
       if (typeof args.take === 'number') rows = rows.slice(0, args.take);
       return rows.map((r) => {
@@ -1248,8 +1268,22 @@ function createModelDelegate(table: string, defaults: () => Record<string, any>)
     },
 
     async findUnique(args: { where: Record<string, any>; include?: any; select?: any }): Promise<any> {
-      const rows = getAllRows(table).filter((r) => matchesWhere(r, args.where));
-      const row = rows[0] || null;
+      let row: any = null;
+      const w = args.where;
+      if (
+        w &&
+        Object.keys(w).length === 1 &&
+        typeof Object.values(w)[0] === 'string' &&
+        /^[a-zA-Z0-9_]+$/.test(Object.keys(w)[0])
+      ) {
+        const col = Object.keys(w)[0];
+        const val = Object.values(w)[0] as string;
+        const raw = db.prepare(`SELECT * FROM "${table}" WHERE "${col}" = ? LIMIT 1`).get(val) as any;
+        row = raw ? normalizeRowBooleans(table, raw) : null;
+      } else {
+        const rows = getAllRows(table).filter((r) => matchesWhere(r, args.where));
+        row = rows[0] || null;
+      }
       if (!row) return null;
       const hydrated = hydrateRelations(table, row, args.include);
       return args.select ? applySelect(hydrated, args.select) : hydrated;

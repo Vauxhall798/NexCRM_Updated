@@ -199,6 +199,8 @@ export const App: React.FC = () => {
       ]);
       setUser(meRes.user);
       setUsers(usersRes.users);
+      // Warm up the projects & timeline cache in the background so Timeline and Projects tabs open in 0ms
+      void apiFetch('/projects').catch(() => {});
     } catch {
       setToken(null);
       setUser(null);
@@ -213,6 +215,7 @@ export const App: React.FC = () => {
 
   const handleLoginSuccess = async (loggedInUser: User) => {
     setUser(loggedInUser);
+    void apiFetch('/projects').catch(() => {});
     try {
       const usersRes = await apiFetch<{ users: User[] }>('/auth/users');
       setUsers(usersRes.users);

@@ -7,7 +7,7 @@ let backupTimer: ReturnType<typeof setTimeout> | null = null;
 
 const getCache = new Map<string, { data: unknown; timestamp: number }>();
 const inFlightGetRequests = new Map<string, Promise<unknown>>();
-const CACHE_TTL_MS = 12_000;
+const CACHE_TTL_MS = 30_000;
 
 export function clearApiCache(): void {
   getCache.clear();
@@ -156,9 +156,9 @@ export async function apiFetch<T>(
     !path.startsWith('/auth') &&
     !path.startsWith('/system')
   ) {
-    // Run snapshot hydration check once per session without blocking subsequent module switches
+    // Run snapshot hydration check once per session in the background without blocking UI rendering
     if (!hydrationChecked) {
-      await ensureHydratedFromSnapshotIfNeeded(token);
+      void ensureHydratedFromSnapshotIfNeeded(token);
     }
 
     const cached = getCache.get(path);

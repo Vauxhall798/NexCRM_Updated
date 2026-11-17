@@ -31,19 +31,20 @@ const timelineEntrySchema = z.object({
   sort_order: z.coerce.number().optional(),
 });
 
-async function recalculateProjectProgress(projectId: string) {
+async function recalculateProjectProgress(projectId: string, preloadedEntries?: any[]) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
-    include: { timeline_entries: true },
+    ...(preloadedEntries ? {} : { include: { timeline_entries: true } }),
   });
 
   if (!project) return null;
 
-  const total = project.timeline_entries.length;
-  const done = project.timeline_entries.filter((e: any) => e.status === 'Done').length;
+  const entriesList = preloadedEntries || project.timeline_entries || [];
+  const total = entriesList.length;
+  const done = entriesList.filter((e: any) => e.status === 'Done').length;
   const computedProgress = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  if (!project.progress_override) {
+  if (!project.progress_override && project.progress !== computedProgress) {
     await prisma.project.update({
       where: { id: projectId },
       data: { progress: computedProgress },
@@ -86,7 +87,7 @@ timelineRouter.get('/', async (req: AuthRequest, res: Response) => {
 
     let stats = null;
     if (project_id && project_id !== 'ALL') {
-      stats = await recalculateProjectProgress(project_id);
+      stats = await recalculateProjectProgress(project_id, entries);
     }
 
     res.json({ entries, stats });
