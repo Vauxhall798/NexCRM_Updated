@@ -76,6 +76,8 @@ class StringSchema extends SchemaField<string> {
   private minMsg = 'Invalid string';
   private checkEmail = false;
   private emailMsg = 'Invalid email address';
+  private checkPhone = false;
+  private phoneMsg = 'Phone number must contain 10 to 15 digits';
 
   min(len: number, msg?: string): this {
     this.minLen = len;
@@ -89,6 +91,12 @@ class StringSchema extends SchemaField<string> {
     return this;
   }
 
+  phone(msg?: string): this {
+    this.checkPhone = true;
+    if (msg) this.phoneMsg = msg;
+    return this;
+  }
+
   validateValue(val: unknown, path: string[]) {
     if (typeof val !== 'string') {
       return { ok: false as const, message: `${path.join('.')} must be a string` };
@@ -98,6 +106,12 @@ class StringSchema extends SchemaField<string> {
     }
     if (this.checkEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val.trim())) {
       return { ok: false as const, message: this.emailMsg };
+    }
+    if (this.checkPhone) {
+      const digits = val.replace(/\D/g, '');
+      if (digits.length < 10 || digits.length > 15) {
+        return { ok: false as const, message: this.phoneMsg };
+      }
     }
     return { ok: true as const, value: val };
   }
@@ -142,10 +156,16 @@ class NumberSchema extends SchemaField<number> {
 
 class BooleanSchema extends SchemaField<boolean> {
   validateValue(val: unknown, path: string[]) {
-    if (typeof val !== 'boolean') {
-      return { ok: false as const, message: `${path.join('.')} must be a boolean` };
+    if (typeof val === 'boolean') {
+      return { ok: true as const, value: val };
     }
-    return { ok: true as const, value: val };
+    if (val === 1 || val === '1' || val === 'true') {
+      return { ok: true as const, value: true };
+    }
+    if (val === 0 || val === '0' || val === 'false') {
+      return { ok: true as const, value: false };
+    }
+    return { ok: false as const, message: `${path.join('.')} must be a boolean` };
   }
 }
 

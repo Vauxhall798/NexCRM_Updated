@@ -37,4 +37,13 @@ const PORT = Number(process.env.PORT) || 4000;
 
 app.listen(PORT, () => {
   console.log(`NexCRM Backend API listening on http://localhost:${PORT}`);
+
+  // Keep-alive heartbeat to prevent Render free-tier spin-down after 15 mins of inactivity
+  const externalUrl = process.env.RENDER_EXTERNAL_URL || process.env.PUBLIC_API_URL;
+  if (externalUrl) {
+    const healthUrl = `${externalUrl.replace(/\/+$/, '')}/api/health`;
+    setInterval(() => {
+      fetch(healthUrl).catch(() => {});
+    }, 10 * 60 * 1000);
+  }
 });

@@ -34,11 +34,13 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatPhoneInput,
   getClientStatusBadge,
   getProjectStatusBadge,
   PROJECT_STATUSES,
   SERVICE_TYPES,
   toInputDate,
+  validatePhoneNumber,
 } from '../lib/utils';
 import { Modal } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -208,17 +210,30 @@ export const ClientsPage: React.FC<ClientsPageProps> = ({
     e.preventDefault();
     setFormError(null);
 
-    if (!form.company.trim() || !form.contact_name.trim() || !form.email.trim()) {
-      setFormError('Company name, primary contact name, and email are required.');
+    if (!form.company.trim() || !form.contact_name.trim() || !form.email.trim() || !form.phone.trim()) {
+      setFormError('Company name, primary contact name, email, and phone are required.');
       return;
     }
+
+    const phoneValidation = validatePhoneNumber(form.phone);
+    if (!phoneValidation.valid) {
+      setFormError(
+        phoneValidation.message || 'Please enter a valid 10-digit phone number (e.g., 98765 43210).'
+      );
+      return;
+    }
+
+    const payload = {
+      ...form,
+      phone: phoneValidation.formatted,
+    };
 
     setSubmitting(true);
     try {
       if (editingClient) {
         const res = await apiFetch<{ client: Client }>(`/clients/${editingClient.id}`, {
           method: 'PUT',
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         showToast(`Updated client "${res.client.company}"`);
         if (selectedClient?.id === res.client.id) {
@@ -227,7 +242,7 @@ export const ClientsPage: React.FC<ClientsPageProps> = ({
       } else {
         const res = await apiFetch<{ client: Client }>('/clients', {
           method: 'POST',
-          body: JSON.stringify(form),
+          body: JSON.stringify(payload),
         });
         showToast(`Created client "${res.client.company}"`);
       }
@@ -1163,16 +1178,21 @@ export const ClientsPage: React.FC<ClientsPageProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Phone Number *
+                Phone Number (10 digits, e.g. 98765 43210) *
               </label>
               <input
-                type="text"
+                type="tel"
                 required
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+1 (555) 123-4567"
+                onChange={(e) => setForm({ ...form, phone: formatPhoneInput(e.target.value) })}
+                placeholder="98765 43210"
                 className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
+              {form.phone.trim().length > 0 && !validatePhoneNumber(form.phone).valid && (
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1">
+                  {validatePhoneNumber(form.phone).message}
+                </p>
+              )}
             </div>
 
             <div>

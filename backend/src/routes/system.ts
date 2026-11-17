@@ -25,6 +25,7 @@ const ALL_TABLES = [
   'ResourceAssignment',
   'Proposal',
   'ClientPayment',
+  'Expense',
   'EmailLog',
   'SystemSetting',
 ] as const;
@@ -111,6 +112,7 @@ systemRouter.post('/database/restore', async (req: AuthRequest, res: Response) =
   try {
     const payload = req.body as {
       nexcrm_backup_version?: string;
+      merge?: boolean;
       data?: Record<string, any[]>;
     };
 
@@ -120,6 +122,7 @@ systemRouter.post('/database/restore', async (req: AuthRequest, res: Response) =
     }
 
     const data = payload.data;
+    const isMerge = Boolean(payload.merge);
     const restoredSummary: Record<string, number> = {};
 
     // Execute in a single transactional block with foreign keys disabled
@@ -134,8 +137,10 @@ systemRouter.post('/database/restore', async (req: AuthRequest, res: Response) =
           continue;
         }
 
-        // Clear existing data for table
-        db.exec(`DELETE FROM "${table}";`);
+        // Clear existing data for table unless merge mode is active
+        if (!isMerge) {
+          db.exec(`DELETE FROM "${table}";`);
+        }
 
         // Insert rows dynamically matching their keys
         let insertCount = 0;

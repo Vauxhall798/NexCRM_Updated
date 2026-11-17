@@ -72,6 +72,7 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
   const [recipientName, setRecipientName] = useState('');
   const [nextFollowupDate, setNextFollowupDate] = useState('');
   const [customGuidance, setCustomGuidance] = useState('');
+  const [variationIndex, setVariationIndex] = useState(0);
   const [generatingAi, setGeneratingAi] = useState(false);
   const [sending, setSending] = useState(false);
 
@@ -80,6 +81,7 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
     if (lead && open) {
       setRecipientEmail(lead.email || '');
       setRecipientName(lead.name || '');
+      setVariationIndex(0);
 
       // Pick sensible template based on lead status
       let initialTpl: FollowupTemplateType = 'proposal_checkin';
@@ -94,11 +96,17 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
       setNextFollowupDate(d);
 
       // Auto-generate initial draft
-      fetchDraft(lead.id, initialTpl);
+      fetchDraft(lead.id, initialTpl, '', 0, false);
     }
   }, [lead, open]);
 
-  const fetchDraft = async (leadId: string, tpl: FollowupTemplateType, guidance?: string) => {
+  const fetchDraft = async (
+    leadId: string,
+    tpl: FollowupTemplateType,
+    guidance?: string,
+    varIdx = 0,
+    notifyToast = false
+  ) => {
     setGeneratingAi(true);
     try {
       const res = await apiFetch<{ draft: FollowupDraft }>('/automation/generate-draft', {
@@ -106,7 +114,8 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
         body: JSON.stringify({
           lead_id: leadId,
           template_type: tpl,
-          custom_notes: guidance || customGuidance,
+          custom_notes: guidance !== undefined ? guidance : customGuidance,
+          variation_index: varIdx,
         }),
       });
 
@@ -115,11 +124,22 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
       if (res.draft.suggested_next_followup) {
         setNextFollowupDate(res.draft.suggested_next_followup);
       }
+      if (notifyToast) {
+        showToast('Regenerated fresh AI follow-up draft!', 'info');
+      }
     } catch (err) {
       console.warn('Draft generation error:', err);
-      // Fallback
-      setSubject(`Following up on ${lead?.service || 'software engineering'} for ${lead?.company}`);
-      setBody(`Hi ${lead?.name || 'there'},\n\nHope all is well. I wanted to follow up regarding our recent discussion on ${lead?.service} for ${lead?.company}.\n\nDo you have 10 minutes this week for a brief touchpoint?\n\nBest regards,\nNexInt AI Team`);
+      // Fallback with variation
+      setSubject(
+        varIdx % 2 === 0
+          ? `Following up on ${lead?.service || 'software engineering'} for ${lead?.company}`
+          : `Next steps: ${lead?.company} × NexInt AI (${lead?.service || 'Solutions'})`
+      );
+      setBody(
+        varIdx % 2 === 0
+          ? `Hi ${lead?.name || 'there'},\n\nHope all is well. I wanted to follow up regarding our recent discussion on ${lead?.service} for ${lead?.company}.\n\nDo you have 10 minutes this week for a brief touchpoint?\n\nBest regards,\nNexInt AI Team`
+          : `Hi ${lead?.name || 'there'},\n\nTouching base on ${lead?.company}'s ${lead?.service} roadmap. Our engineering team has prepared a tailored implementation plan and would love to walk you through the milestones.\n\nWhat time works best for a quick 15-minute review call this week?\n\nWarm regards,\nNexInt AI Team`
+      );
     } finally {
       setGeneratingAi(false);
     }
@@ -127,9 +147,17 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
 
   const handleTemplateChange = (tpl: FollowupTemplateType) => {
     setTemplateType(tpl);
+    setVariationIndex(0);
     if (lead) {
-      fetchDraft(lead.id, tpl);
+      fetchDraft(lead.id, tpl, customGuidance, 0, false);
     }
+  };
+
+  const handleRegenerateWithAi = () => {
+    if (!lead) return;
+    const nextVar = variationIndex + 1;
+    setVariationIndex(nextVar);
+    fetchDraft(lead.id, templateType, customGuidance, nextVar, true);
   };
 
   const handleSendEmail = async (e: React.FormEvent) => {
@@ -208,7 +236,7 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
             </label>
             <button
               type="button"
-              onClick={() => lead && fetchDraft(lead.id, templateType)}
+              onClick={handleRegenerateWithAi}
               disabled={generatingAi}
               className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:underline cursor-pointer disabled:opacity-50"
             >
@@ -305,18 +333,30 @@ export const FollowUpEmailModal: React.FC<FollowUpEmailModalProps> = ({
 
         {/* Form Action Buttons */}
         <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200 dark:border-slate-800">
-          <a
-            href={`mailto:${encodeURIComponent(recipientEmail)}?subject=${encodeURIComponent(
-              subject
-            )}&body=${encodeURIComponent(body)}`}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-            title="Open in your default email client (Gmail / Outlook)"
-          >
-            <ExternalLink className="w-3.5 h-3.5" />
-            Open in Gmail / Outlook
-          </a>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <a
+              href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                recipientEmail.trim()
+              )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800"
+              title="Open prepared message directly in Gmail Web Composer"
+            >
+              <ExternalLink className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              Open in Gmail
+            </a>
+            <a
+              href={`mailto:${recipientEmail.trim()}?subject=${encodeURIComponent(
+                subject
+              )}&body=${encodeURIComponent(body.replace(/\r?\n/g, '\r\n'))}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              title="Open prepared message in your desktop mail app (Outlook / Apple Mail)"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              Outlook / Mail App
+            </a>
+          </div>
 
           <div className="flex items-center gap-2">
             <button

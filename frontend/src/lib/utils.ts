@@ -112,7 +112,7 @@ export const CURRENCIES = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD'];
 
 export function formatCurrency(amount: number | null | undefined, currency = 'INR'): string {
   const val = Number(amount || 0);
-  const curr = !currency || currency === 'USD' ? 'INR' : currency;
+  const curr = (currency || 'INR').toUpperCase();
   const locale = curr === 'INR' ? 'en-IN' : 'en-US';
   try {
     return new Intl.NumberFormat(locale, {
@@ -123,6 +123,71 @@ export function formatCurrency(amount: number | null | undefined, currency = 'IN
   } catch {
     return `₹${val.toLocaleString('en-IN')}`;
   }
+}
+
+/**
+ * Formats a phone number with proper 5-digit + 5-digit spacing (e.g. "98765 43210" or "+91 98765 43210")
+ * while stripping invalid non-phone characters.
+ */
+export function formatPhoneInput(raw: string): string {
+  const trimmed = raw.replace(/[^\d+\s()-]/g, '');
+  const hasPlus = trimmed.trim().startsWith('+');
+  const digits = trimmed.replace(/\D/g, '');
+
+  if (!digits) return hasPlus ? '+' : '';
+
+  // Standard 10-digit Indian mobile number -> format as "XXXXX XXXXX"
+  if (!hasPlus && digits.length <= 10) {
+    if (digits.length > 5) {
+      return `${digits.slice(0, 5)} ${digits.slice(5, 10)}`;
+    }
+    return digits;
+  }
+
+  // Country code +91 followed by 10 digits -> "+91 XXXXX XXXXX"
+  if ((hasPlus || digits.length > 10) && digits.startsWith('91') && digits.length <= 12) {
+    const rest = digits.slice(2);
+    if (rest.length > 5) {
+      return `+91 ${rest.slice(0, 5)} ${rest.slice(5, 10)}`;
+    }
+    return rest ? `+91 ${rest}` : '+91';
+  }
+
+  // Generic international or 10+ digit number (cap at 15 digits per E.164)
+  const capped = digits.slice(0, 15);
+  if (capped.length === 10) {
+    return `${capped.slice(0, 5)} ${capped.slice(5, 10)}`;
+  }
+  return hasPlus ? `+${capped}` : capped;
+}
+
+/**
+ * Validates that a phone number has at least 10 digits (and at most 15 digits).
+ */
+export function validatePhoneNumber(raw: string): {
+  valid: boolean;
+  message?: string;
+  formatted: string;
+} {
+  const digits = String(raw || '').replace(/\D/g, '');
+  if (digits.length < 10) {
+    return {
+      valid: false,
+      message: 'Phone number must be at least 10 digits (e.g., 98765 43210).',
+      formatted: raw,
+    };
+  }
+  if (digits.length > 15) {
+    return {
+      valid: false,
+      message: 'Phone number cannot exceed 15 digits.',
+      formatted: raw,
+    };
+  }
+  return {
+    valid: true,
+    formatted: formatPhoneInput(raw),
+  };
 }
 
 export function formatDate(dateStr: string | null | undefined): string {

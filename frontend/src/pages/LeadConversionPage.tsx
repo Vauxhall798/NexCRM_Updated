@@ -43,6 +43,8 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatPhoneInput,
+  validatePhoneNumber,
   getConversionBadge,
   NOT_CONVERTED_REASONS,
   PROJECT_STATUSES,
@@ -124,12 +126,10 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
     setOnboardCompany(conv.lead.company || '');
     setOnboardContactName(conv.lead.name || '');
     setOnboardEmail(conv.lead.email || '');
-    setOnboardPhone(conv.lead.phone || '');
-    setOnboardIndustry('Enterprise Technology');
-    setOnboardWebsite(
-      `https://${conv.lead.company.toLowerCase().replace(/[^a-z0-9]/g, '')}.com`
-    );
-    setOnboardAddress('');
+    setOnboardPhone(formatPhoneInput(conv.lead.phone || ''));
+    setOnboardIndustry((conv.lead.client as any)?.industry || 'Enterprise Technology');
+    setOnboardWebsite((conv.lead.client as any)?.website || '');
+    setOnboardAddress((conv.lead.client as any)?.address || '');
     setOnboardClientNotes(conv.comment || conv.lead.notes || '');
     setOnboardProjectName(`${conv.lead.company} — ${conv.lead.service} Transformation`);
     setOnboardServiceType(conv.lead.service || 'AI services');
@@ -148,6 +148,13 @@ export const LeadConversionPage: React.FC<LeadConversionPageProps> = ({
   const handleOnboardSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!onboardConv) return;
+    if (onboardPhone.trim()) {
+      const phoneCheck = validatePhoneNumber(onboardPhone);
+      if (!phoneCheck.valid) {
+        showToast(phoneCheck.message || 'Please enter a valid 10-digit phone number.', 'error');
+        return;
+      }
+    }
     setOnboardingSubmitting(true);
     try {
       const res = await apiFetch<{

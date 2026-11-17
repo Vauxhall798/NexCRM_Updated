@@ -2,6 +2,7 @@ import tls from 'node:tls';
 import net from 'node:net';
 import fs from 'node:fs';
 import path from 'node:path';
+import { db } from './prisma.ts';
 
 export interface SendEmailOptions {
   to: string;
@@ -52,10 +53,24 @@ function loadLocalEnvIfEmpty() {
   } catch {}
 }
 
-// Read configuration from environment
+// Read configuration from DB SystemSetting and environment
 function getEmailConfig() {
   loadLocalEnvIfEmpty();
+  const dbMap: Record<string, string> = {};
+  try {
+    const rows = db.prepare('SELECT "key", "value" FROM "SystemSetting"').all() as Array<{
+      key: string;
+      value: string;
+    }>;
+    for (const r of rows) {
+      if (r.key && r.value) dbMap[r.key] = r.value;
+    }
+  } catch {
+    // ignore if table not ready
+  }
+
   const rawFrom =
+    dbMap['MAIL_FROM'] ||
     process.env.MAIL_FROM ||
     process.env.RESEND_FROM ||
     process.env.SMTP_FROM ||
@@ -63,14 +78,18 @@ function getEmailConfig() {
     'info@nexintai.com';
 
   return {
-    smtpHost: process.env.SMTP_HOST || '',
-    smtpPort: Number(process.env.SMTP_PORT || 587),
-    smtpUser: process.env.SMTP_USER || '',
-    smtpPass: process.env.SMTP_PASS || '',
+    smtpHost: dbMap['SMTP_HOST'] || process.env.SMTP_HOST || '',
+    smtpPort: Number(dbMap['SMTP_PORT'] || process.env.SMTP_PORT || 587),
+    smtpUser: dbMap['SMTP_USER'] || process.env.SMTP_USER || '',
+    smtpPass: dbMap['SMTP_PASS'] || process.env.SMTP_PASS || '',
     smtpFrom: rawFrom,
-    fromName: process.env.MAIL_FROM_NAME || process.env.SMTP_FROM_NAME || 'NexInt AI',
-    resendApiKey: process.env.RESEND_API_KEY || '',
-    brevoApiKey: process.env.BREVO_API_KEY || '',
+    fromName:
+      dbMap['MAIL_FROM_NAME'] ||
+      process.env.MAIL_FROM_NAME ||
+      process.env.SMTP_FROM_NAME ||
+      'NexInt AI',
+    resendApiKey: dbMap['RESEND_API_KEY'] || process.env.RESEND_API_KEY || '',
+    brevoApiKey: dbMap['BREVO_API_KEY'] || process.env.BREVO_API_KEY || '',
     sendgridApiKey: process.env.SENDGRID_API_KEY || '',
   };
 }
@@ -83,9 +102,10 @@ export async function sendCrmEmail(opts: SendEmailOptions): Promise<SendEmailRes
   const fromAddress = config.smtpFrom;
   const fromDisplayName = opts.fromName || config.fromName;
   const messageId = `<crm-${Date.now()}-${Math.floor(Math.random() * 100000)}@nexint.ai>`;
+  let lastProviderError = '';
 
   // 1. Generate mailto URL for local / fallback convenience
-  const mailtoUrl = `mailto:${encodeURIComponent(opts.to)}?subject=${encodeURIComponent(
+  const mailtoUrl = `mailto:${opts.to}?subject=${encodeURIComponent(
     opts.subject
   )}&body=${encodeURIComponent(opts.text)}`;
 
@@ -128,6 +148,7 @@ export async function sendCrmEmail(opts: SendEmailOptions): Promise<SendEmailRes
       if (!res.ok) {
         const errText = await res.text();
         console.warn('Resend primary dispatch notice:', errText);
+        lastProviderError = errText;
 
         if (errText.includes('domain') || errText.includes('validation_error') || res.status === 403) {
           console.info('Attempting Resend verified sender fallback (onboarding@resend.dev) with reply_to:', fromAddress);
@@ -160,10 +181,17 @@ export async function sendCrmEmail(opts: SendEmailOptions): Promise<SendEmailRes
         };
       } else {
         const errText = await res.text();
-        console.warn('Resend API attempt failed, proceeding to fallback:', errText);
+        try {
+          const parsedErr = JSON.parse(errText);
+          lastProviderError = parsedErr.message || errText;
+        } catch {
+          lastProviderError = errText || lastProviderError;
+        }
+        console.warn('Resend API attempt failed, proceeding to fallback:', lastProviderError);
       }
     } catch (err: any) {
-      console.warn('Error calling Resend API:', err?.message || err);
+      lastProviderError = err?.message || String(err);
+      console.warn('Error calling Resend API:', lastProviderError);
     }
   }
 
@@ -226,6 +254,7 @@ export async function sendCrmEmail(opts: SendEmailOptions): Promise<SendEmailRes
     messageId,
     provider: 'CRM Mailer (Simulated & Logged)',
     status: 'Simulated',
+    error: lastProviderError || undefined,
     mailtoUrl,
   };
 }

@@ -2873,6 +2873,20 @@ info@nexintai.com · nexintai.com`;
       if (pkgNameEl) pkgNameEl.textContent = name + ' · ' + weeks;
       if (pkgPriceEl) pkgPriceEl.textContent = price;
     }
+
+    // Intercept all internal #hash anchor clicks so iframe srcdoc scrolls smoothly instead of loading parent app URL
+    document.addEventListener('click', function(e) {
+      var anchor = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
+      if (!anchor) return;
+      var hash = anchor.getAttribute('href');
+      if (hash && hash.startsWith('#')) {
+        e.preventDefault();
+        var targetEl = document.querySelector(hash);
+        if (targetEl && targetEl.scrollIntoView) {
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    });
   </script>
 </body>
 </html>`;

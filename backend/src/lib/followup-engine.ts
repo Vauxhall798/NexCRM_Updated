@@ -15,6 +15,7 @@ export interface FollowupDraftRequest {
   customNotes?: string;
   senderName?: string;
   senderRole?: string;
+  variationIndex?: number;
 }
 
 export interface FollowupDraftResponse {
@@ -115,68 +116,119 @@ Rules:
     }
   }
 
-  // Built-in intelligent template synthesizer
+  // Built-in intelligent template synthesizer with multi-variation support
+  const vIdx = Math.abs(Number(req.variationIndex || 0)) % 3;
+  const tpl = req.templateType || 'gentle_nudge';
+  const contextLine = recentNotes
+    ? `\n\nBased on our notes ("${recentNotes.slice(0, 110)}${recentNotes.length > 110 ? '...' : ''}"), we have aligned our technical blueprint to match your priorities.`
+    : '';
+
   let subject = `Following up regarding ${service} for ${company}`;
-  let body = `Hi ${recipientName},
+  let body = '';
 
-I hope your week is going well.
-
-I am following up on our recent conversation regarding ${service} for ${company}. We are excited about the potential collaboration and wanted to see if you had any questions on scope, deliverables, or team allocation.
-
-Would you have 10-15 minutes this week for a brief touchpoint to align on next steps?
-
-Best regards,
-${senderName}
-NexInt AI Technologies`;
-
-  if (req.templateType === 'proposal_checkin' || lead.status === 'Proposal sent') {
-    subject = `Checking in: Proposal for ${company} — NexInt AI`;
-    body = `Hi ${recipientName},
-
-I wanted to quickly check in to confirm you received the proposal we shared for ${company}'s ${service} initiative.
-
-We designed the milestones and architecture to deliver quick business outcomes within your timeline. Have you had an opportunity to review it with your team?
-
-I would be happy to jump on a quick call to answer any technical questions or fine-tune specific deliverables to fit your schedule.
-
-Warm regards,
-${senderName}
-NexInt AI Technologies`;
-  } else if (req.templateType === 'meeting_reminder' || lead.status === 'Meeting scheduled') {
-    subject = `Upcoming Discussion: ${service} for ${company}`;
-    body = `Hi ${recipientName},
-
-Looking forward to our upcoming discussion on ${service} for ${company}.
-
-Ahead of our call, please feel free to share any specific architecture requirements, sample data, or questions your team would like us to cover.
-
-Looking forward to connecting soon!
-
-Best,
-${senderName}
-NexInt AI Technologies`;
-  } else if (req.templateType === 'negotiation_close' || lead.status === 'Negotiation') {
-    subject = `Next steps: Finalizing ${service} engagement for ${company}`;
-    body = `Hi ${recipientName},
-
-Hope all is well. Following our recent discussion, our engineering team has reserved capacity for the kickoff of ${company}'s ${service} engagement.
-
-Please let us know if there are any contractual or scope adjustments needed so we can finalize the agreement and initiate Sprint 1 seamlessly.
-
-Best regards,
-${senderName}
-NexInt AI Technologies`;
-  } else if (req.templateType === 'reengagement' || req.templateType === 'gentle_nudge') {
-    subject = `Quick check-in: ${company} & ${service}`;
-    body = `Hi ${recipientName},
-
-I know how busy things get, so I wanted to send a gentle nudge regarding ${company}'s plans around ${service}.
-
-Are you still planning to move forward with this project this quarter, or has the timeline shifted? Let me know so we can best support you whenever the timing is right.
-
-Best regards,
-${senderName}
-NexInt AI Technologies`;
+  if (tpl === 'proposal_checkin') {
+    const variants = [
+      {
+        subject: `Checking in: Proposal for ${company} — NexInt AI`,
+        body: `Hi ${recipientName},\n\nI wanted to quickly check in to confirm you received the proposal we shared for ${company}'s ${service} initiative.${contextLine}\n\nWe designed the milestones and architecture to deliver measurable business outcomes within your target timeline. Have you had an opportunity to review it with your team?\n\nI would be happy to jump on a quick 15-minute call to walk through the technical architecture or fine-tune any deliverables.\n\nWarm regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Architecture & Milestone Walkthrough: ${company} (${service})`,
+        body: `Hi ${recipientName},\n\nHope your week is going well. Following up on the ${service} proposal we prepared for ${company}, I wanted to see what initial feedback came up from your stakeholders.${contextLine}\n\nIf helpful, our lead architect can join a brief 15-minute review session this week to adjust phase boundaries, integrations, or commercial milestones.\n\nLet me know what day and time works best for you.\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Next steps on ${company}'s ${service} proposal — NexInt AI`,
+        body: `Hi ${recipientName},\n\nI am writing to touch base on the ${service} proposal for ${company}. Our delivery squad is currently planning sprint allocations for the upcoming cycle, and we would love to reserve dedicated engineering bandwidth for your launch.${contextLine}\n\nAre there any open questions on the scope or investment breakdown that I can clarify for you today?\n\nWarm regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+    ];
+    subject = variants[vIdx].subject;
+    body = variants[vIdx].body;
+  } else if (tpl === 'meeting_reminder') {
+    const variants = [
+      {
+        subject: `Upcoming Discussion: ${service} for ${company}`,
+        body: `Hi ${recipientName},\n\nLooking forward to our upcoming discussion on ${service} for ${company}.${contextLine}\n\nAhead of our call, please feel free to share any specific architecture requirements, sample workflows, or questions your team would like us to cover.\n\nLooking forward to connecting soon!\n\nBest,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Agenda & Technical Prep: ${company} × NexInt AI`,
+        body: `Hi ${recipientName},\n\nWe are excited for our scheduled session regarding ${company}'s ${service} roadmap. During our call, we will cover:\n• Current workflow bottlenecks & target architecture\n• Phased delivery milestones & timeline\n• Transparent investment & ROI metrics\n\nPlease let me know if you would like to add any specific topics to the agenda.\n\nWarm regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Confirming our ${service} discovery session — ${company}`,
+        body: `Hi ${recipientName},\n\nJust a quick note to confirm our upcoming consultation for ${company}'s ${service} initiative.${contextLine}\n\nOur solutions engineering team has prepared a tailored walkthrough relevant to your domain. Let me know if your schedule still looks good or if anyone else from your team will be joining.\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+    ];
+    subject = variants[vIdx].subject;
+    body = variants[vIdx].body;
+  } else if (tpl === 'negotiation_close') {
+    const variants = [
+      {
+        subject: `Next steps: Finalizing ${service} engagement for ${company}`,
+        body: `Hi ${recipientName},\n\nHope all is well. Following our recent discussion, our engineering team has reserved capacity for the kickoff of ${company}'s ${service} engagement.${contextLine}\n\nPlease let us know if there are any contractual or scope adjustments needed so we can finalize the agreement and initiate Sprint 1 seamlessly.\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Kickoff Readiness & Final Sign-off: ${company} (${service})`,
+        body: `Hi ${recipientName},\n\nWe are thrilled to be at the final stage of our ${service} planning with ${company}. We have locked in your delivery squad and Phase 1 onboarding checklist.${contextLine}\n\nOnce the work order is signed off, we can begin environment setup and data discovery within 48 hours. Let me know if you need any final edits from our side!\n\nWarm regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Closing the loop on ${company}'s ${service} agreement`,
+        body: `Hi ${recipientName},\n\nTouching base on the final commercial terms for ${company}'s ${service} rollout. We want to ensure the milestone payment schedule and SLA terms align 100% with your procurement process.${contextLine}\n\nDo you have 10 minutes today to wrap up the final details?\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+    ];
+    subject = variants[vIdx].subject;
+    body = variants[vIdx].body;
+  } else if (tpl === 'initial_inquiry') {
+    const variants = [
+      {
+        subject: `Exploring ${service} for ${company} — NexInt AI`,
+        body: `Hi ${recipientName},\n\nThank you for connecting with NexInt AI regarding ${company}'s ${service} initiative.${contextLine}\n\nWe specialize in building production-grade ${service.toLowerCase()} platforms with rapid time-to-value and 100% client IP ownership. Would you be open to a brief 15-minute discovery call this week to discuss your goals?\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Tailored ${service} blueprint for ${company}`,
+        body: `Hi ${recipientName},\n\nI hope your week is going well. I wanted to follow up on your inquiry around ${service} for ${company}.${contextLine}\n\nWe have delivered similar architectures that reduced manual operational overhead by over 60%. I would love to share a quick demo and learn more about your requirements.\n\nWhat time works best for a quick chat this week?\n\nWarm regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Quick introduction: ${company} × NexInt AI (${service})`,
+        body: `Hi ${recipientName},\n\nReaching out regarding ${company}'s interest in ${service}. Our engineering team has reviewed your initial brief and put together a few architecture recommendations tailored to your workflow.${contextLine}\n\nCould we schedule a short 15-minute call on Thursday or Friday to walk through them?\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+    ];
+    subject = variants[vIdx].subject;
+    body = variants[vIdx].body;
+  } else if (tpl === 'reengagement') {
+    const variants = [
+      {
+        subject: `Reconnecting on ${company}'s ${service} roadmap`,
+        body: `Hi ${recipientName},\n\nIt has been a little while since we last spoke about ${company}'s ${service} plans, so I wanted to reconnect and see how things are progressing on your end.${contextLine}\n\nWe have recently rolled out new accelerators in ${service.toLowerCase()} that can significantly shorten delivery timelines. Let me know if this initiative is back on your radar for this quarter!\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Checking in on priorities at ${company}`,
+        body: `Hi ${recipientName},\n\nHope you and the team at ${company} are doing well! I wanted to circle back on our earlier conversation around ${service}.${contextLine}\n\nHas your timeline firmed up for the upcoming quarter? Even if priorities have shifted, I would love to hear what you are focused on now.\n\nWarm regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Still exploring ${service} for ${company}?`,
+        body: `Hi ${recipientName},\n\nI wanted to send a brief note to see if ${company} is still evaluating partners for ${service}.${contextLine}\n\nIf you are ready to revisit the scope or need an updated estimate for your budget cycle, I am happy to put together a refreshed roadmap for you.\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+    ];
+    subject = variants[vIdx].subject;
+    body = variants[vIdx].body;
+  } else {
+    // gentle_nudge
+    const variants = [
+      {
+        subject: `Quick check-in: ${company} & ${service}`,
+        body: `Hi ${recipientName},\n\nI know how busy things get, so I wanted to send a gentle nudge regarding ${company}'s plans around ${service}.${contextLine}\n\nAre you still planning to move forward with this project this quarter, or has the timeline shifted? Let me know so we can best support you whenever the timing is right.\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Following up: ${service} initiative for ${company}`,
+        body: `Hi ${recipientName},\n\nI hope your week is going well. I am following up on our recent conversation regarding ${service} for ${company}.${contextLine}\n\nWe are excited about the potential collaboration and wanted to see if you had any questions on scope, deliverables, or team allocation. Would you have 10–15 minutes this week for a brief touchpoint?\n\nBest regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+      {
+        subject: `Keeping ${company}'s ${service} project moving forward`,
+        body: `Hi ${recipientName},\n\nJust floating this to the top of your inbox regarding ${company}'s ${service} requirements.${contextLine}\n\nLet me know if there is any additional technical documentation, security compliance info, or case study we can share to help your team make a decision.\n\nWarm regards,\n${senderName}\nNexInt AI Technologies`,
+      },
+    ];
+    subject = variants[vIdx].subject;
+    body = variants[vIdx].body;
   }
 
   return {

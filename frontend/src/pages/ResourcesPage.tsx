@@ -249,15 +249,22 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
       );
       const defaultProj = activeProjects[0] || projects[0];
       const suggestedPct =
-        targetRes && targetRes.available_pct > 0 ? Math.min(50, targetRes.available_pct) : 50;
+        targetRes && targetRes.available_pct > 0 ? Math.min(50, targetRes.available_pct) : 25;
+
+      const todayIso = defaultStart();
+      const projStartIso = toInputDate(defaultProj?.start_date);
+      const projEndIso = toInputDate(defaultProj?.end_date);
+      const safeStart = projStartIso && projStartIso >= todayIso ? projStartIso : todayIso;
+      const safeEnd =
+        projEndIso && projEndIso >= safeStart ? projEndIso : defaultEnd();
 
       setAssignForm({
         resource_id: targetRes?.id || '',
         project_id: defaultProj?.id || '',
         assignment_role: targetRes?.role_title || 'Software Engineer',
         allocation_pct: suggestedPct,
-        start_date: toInputDate(defaultProj?.start_date) || defaultStart(),
-        end_date: toInputDate(defaultProj?.end_date) || defaultEnd(),
+        start_date: safeStart,
+        end_date: safeEnd,
         status: 'Active',
         notes: '',
       });
@@ -270,6 +277,31 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
     if (!assignForm.resource_id || !assignForm.project_id) {
       showToast('Please select both a resource and a project', 'error');
       return;
+    }
+
+    const todayIso = defaultStart();
+    if (!editingAssignment && assignForm.start_date < todayIso) {
+      showToast('Start Date cannot be in the past.', 'error');
+      return;
+    }
+    if (assignForm.end_date < assignForm.start_date) {
+      showToast('End Date cannot be earlier than Start Date.', 'error');
+      return;
+    }
+
+    if (assignForm.status === 'Active' && selectedAssignResource) {
+      const currentOtherAlloc = (selectedAssignResource.assignments || [])
+        .filter((a) => a.status === 'Active' && a.id !== editingAssignment?.id)
+        .reduce((sum, a) => sum + Number(a.allocation_pct || 0), 0);
+      const maxCap = Number(selectedAssignResource.total_capacity || 100);
+      if (currentOtherAlloc + Number(assignForm.allocation_pct) > maxCap) {
+        const remaining = Math.max(0, maxCap - currentOtherAlloc);
+        showToast(
+          `Cannot allocate ${assignForm.allocation_pct}%. ${selectedAssignResource.name} only has ${remaining}% free capacity remaining.`,
+          'error'
+        );
+        return;
+      }
     }
 
     try {
@@ -701,7 +733,10 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-semibold text-slate-600 dark:text-slate-300">
-                        Allocated: <strong className="text-[#0F2547] dark:text-white">{res.allocated_pct}%</strong>
+                        Allocated:{' '}
+                        <strong className="text-[#0F2547] dark:text-white">
+                          {Math.min(100, res.allocated_pct)}%
+                        </strong>
                       </span>
                       <span
                         className={`font-bold ${
@@ -836,16 +871,16 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
         /* Table View (Allocation Matrix) */
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[700px]">
+            <table className="w-full text-left border-collapse min-w-[960px]">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 text-[11px] font-bold uppercase text-slate-500 dark:text-slate-400">
-                  <th className="py-3.5 px-4">Resource</th>
-                  <th className="py-3.5 px-4">Department & Seniority</th>
-                  <th className="py-3.5 px-4">Availability</th>
-                  <th className="py-3.5 px-4">Utilization</th>
-                  <th className="py-3.5 px-4">Current Project Assignments</th>
-                  <th className="py-3.5 px-4">Rate</th>
-                  <th className="py-3.5 px-4 text-right">Actions</th>
+                <tr className="border-b border-slate-200 dark:border-slate-800 divide-x divide-slate-200/70 dark:divide-slate-800 bg-slate-50/90 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                  <th className="py-3.5 px-4 whitespace-nowrap">Resource</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Department &amp; Seniority</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Availability</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap min-w-[180px]">Utilization</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Current Project Assignments</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Rate</th>
+                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
@@ -853,32 +888,33 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
                   const activeAssigns = (res.assignments || []).filter(
                     (a) => a.status === 'Active' || a.status === 'Planned'
                   );
+                  const displayAlloc = Math.min(100, res.allocated_pct);
                   return (
                     <tr
                       key={res.id}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                      className="divide-x divide-slate-100 dark:divide-slate-800/70 hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
                     >
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => setSelectedResource(res)}
-                          className="font-bold text-[#0F2547] dark:text-slate-100 hover:text-[#3596B0] text-left"
+                          className="font-bold text-[#0F2547] dark:text-slate-100 hover:text-[#3596B0] text-left block"
                         >
                           {res.name}
                         </button>
-                        <div className="text-[11px] text-slate-500">{res.role_title}</div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">{res.role_title}</div>
                       </td>
 
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <div className="font-semibold text-slate-700 dark:text-slate-200">
                           {res.department}
                         </div>
-                        <div className="text-[11px] text-slate-400">{res.seniority}</div>
+                        <div className="text-[11px] text-slate-400 mt-0.5">{res.seniority}</div>
                       </td>
 
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 whitespace-nowrap">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border ${getResourceAvailabilityBadge(
+                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold border whitespace-nowrap ${getResourceAvailabilityBadge(
                             res.availability_status
                           )}`}
                         >
@@ -886,24 +922,28 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
                         </span>
                       </td>
 
-                      <td className="py-3.5 px-4 min-w-[160px]">
-                        <div className="flex items-center justify-between text-[11px] mb-1">
-                          <span className="font-semibold">{res.allocated_pct}% Busy</span>
-                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                      <td className="py-3.5 px-4 min-w-[180px]">
+                        <div className="flex items-center justify-between text-[11px] mb-1.5 gap-2">
+                          <span className="font-semibold whitespace-nowrap">
+                            {displayAlloc}% Busy
+                          </span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold whitespace-nowrap">
                             {res.available_pct}% Free
                           </span>
                         </div>
                         <div className="w-full h-2 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
                           <div
-                            className="h-full bg-[#3596B0]"
-                            style={{ width: `${Math.min(100, res.allocated_pct)}%` }}
+                            className={`h-full rounded-full ${
+                              displayAlloc >= 100 ? 'bg-amber-500' : 'bg-[#3596B0]'
+                            }`}
+                            style={{ width: `${displayAlloc}%` }}
                           />
                         </div>
                       </td>
 
-                      <td className="py-3.5 px-4">
+                      <td className="py-3.5 px-4 min-w-[220px]">
                         {activeAssigns.length === 0 ? (
-                          <span className="text-[11px] text-emerald-600 font-medium">
+                          <span className="text-[11px] text-emerald-600 font-medium whitespace-nowrap">
                             Unassigned (Bench)
                           </span>
                         ) : (
@@ -913,7 +953,7 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
                                 key={a.id}
                                 type="button"
                                 onClick={() => openAssignModal(res, a)}
-                                className="px-2 py-1 rounded-lg bg-[#EEF8FA] dark:bg-slate-800 text-[#0F2547] dark:text-[#7BC8DC] border border-[#B0E0EC] dark:border-slate-700 text-[11px] font-semibold hover:underline"
+                                className="px-2.5 py-1 rounded-lg bg-[#EEF8FA] dark:bg-slate-800 text-[#0F2547] dark:text-[#7BC8DC] border border-[#B0E0EC] dark:border-slate-700 text-[11px] font-semibold hover:underline whitespace-nowrap"
                               >
                                 {a.project?.name} ({a.allocation_pct}%)
                               </button>
@@ -922,23 +962,24 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
                         )}
                       </td>
 
-                      <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="py-3.5 px-4 font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         {formatCurrency(res.hourly_rate)}/hr
                       </td>
 
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="inline-flex items-center gap-1">
+                      <td className="py-3.5 px-4 text-right whitespace-nowrap">
+                        <div className="inline-flex items-center justify-end gap-1.5">
                           <button
                             type="button"
                             onClick={() => openAssignModal(res)}
-                            className="px-2.5 py-1 rounded-lg bg-[#0F2547] text-white text-[11px] font-semibold hover:bg-[#193B6E]"
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-[#0F2547] text-white text-[11px] font-semibold hover:bg-[#193B6E] whitespace-nowrap cursor-pointer"
                           >
-                            + Assign
+                            <Plus className="w-3 h-3 shrink-0" />
+                            <span>Assign</span>
                           </button>
                           <button
                             type="button"
                             onClick={() => openEditResourceModal(res)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800"
+                            className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
                             title="Edit resource"
                           >
                             <Edit3 className="w-4 h-4" />
@@ -946,7 +987,7 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
                           <button
                             type="button"
                             onClick={() => setDeleteResourceTarget(res)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40"
+                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 cursor-pointer"
                             title="Delete resource"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -1500,12 +1541,22 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
               <input
                 type="date"
                 required
+                min={editingAssignment ? undefined : defaultStart()}
                 value={assignForm.start_date}
                 onChange={(e) =>
                   setAssignForm({ ...assignForm, start_date: e.target.value })
                 }
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-800 ${
+                  !editingAssignment && assignForm.start_date && assignForm.start_date < defaultStart()
+                    ? 'border-rose-500'
+                    : 'border-slate-200 dark:border-slate-700'
+                }`}
               />
+              {!editingAssignment && assignForm.start_date && assignForm.start_date < defaultStart() && (
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">
+                  Start Date cannot be in the past.
+                </p>
+              )}
             </div>
 
             <div>
@@ -1515,12 +1566,22 @@ export const ResourcesPage: React.FC<ResourcesPageProps> = ({ onNavigate }) => {
               <input
                 type="date"
                 required
+                min={assignForm.start_date || defaultStart()}
                 value={assignForm.end_date}
                 onChange={(e) =>
                   setAssignForm({ ...assignForm, end_date: e.target.value })
                 }
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800"
+                className={`w-full px-3 py-2 rounded-xl border bg-white dark:bg-slate-800 ${
+                  assignForm.end_date && assignForm.start_date && assignForm.end_date < assignForm.start_date
+                    ? 'border-rose-500'
+                    : 'border-slate-200 dark:border-slate-700'
+                }`}
               />
+              {assignForm.end_date && assignForm.start_date && assignForm.end_date < assignForm.start_date && (
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1 font-medium">
+                  End Date cannot be earlier than Start Date.
+                </p>
+              )}
             </div>
           </div>
 

@@ -157,7 +157,7 @@ const leadInputSchema = z.object({
   name: z.string().min(1, 'Lead name is required'),
   company: z.string().min(1, 'Company name is required'),
   email: z.string().email('Valid email is required'),
-  phone: z.string().min(3, 'Phone number is required'),
+  phone: z.string().min(10, 'Phone number is required').phone('Phone number must contain at least 10 digits'),
   source: z.enum(LEAD_SOURCES),
   service: z.enum(SERVICE_TYPES),
   budget: z.coerce.number().min(0, 'Budget must be 0 or greater').default(0),

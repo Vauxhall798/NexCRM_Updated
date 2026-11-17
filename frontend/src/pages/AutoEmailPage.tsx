@@ -161,12 +161,17 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
       });
 
       setTestResult(res);
-      if (res.success) {
-        showToast(`Test email delivered via ${res.provider}!`);
+      if (res.status === 'Sent') {
+        showToast(`Test email delivered to ${testEmail} via ${res.provider}!`);
+      } else if (res.status === 'Simulated') {
+        showToast(
+          `Logged to Sent Email Logs (${res.provider}). Verify domain in Resend for external recipients.`,
+          'info'
+        );
       } else {
         showToast(res.error || 'Test email failed to send', 'error');
       }
-      fetchLogs();
+      await fetchLogs();
     } catch (err: any) {
       setTestResult({
         success: false,
@@ -565,31 +570,76 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
             {testResult && (
               <div
                 className={`p-4 rounded-xl border mt-4 ${
-                  testResult.success
+                  testResult.status === 'Sent'
                     ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20'
+                    : testResult.status === 'Simulated'
+                    ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20'
                     : 'border-rose-200 dark:border-rose-800 bg-rose-50/50 dark:bg-rose-950/20'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  {testResult.success ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  ) : (
-                    <AlertCircle className="w-5 h-5 text-rose-600 dark:text-rose-400 shrink-0" />
-                  )}
-                  <h4
-                    className={`text-sm font-bold ${
-                      testResult.success
-                        ? 'text-emerald-900 dark:text-emerald-100'
-                        : 'text-rose-900 dark:text-rose-100'
-                    }`}
-                  >
-                    {testResult.success ? 'Test Email Successfully Dispatched!' : 'Delivery Notice / Failure'}
-                  </h4>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    {testResult.status === 'Sent' ? (
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    ) : (
+                      <AlertCircle
+                        className={`w-5 h-5 shrink-0 ${
+                          testResult.status === 'Simulated'
+                            ? 'text-amber-600 dark:text-amber-400'
+                            : 'text-rose-600 dark:text-rose-400'
+                        }`}
+                      />
+                    )}
+                    <h4
+                      className={`text-sm font-bold ${
+                        testResult.status === 'Sent'
+                          ? 'text-emerald-900 dark:text-emerald-100'
+                          : testResult.status === 'Simulated'
+                          ? 'text-amber-900 dark:text-amber-100'
+                          : 'text-rose-900 dark:text-rose-100'
+                      }`}
+                    >
+                      {testResult.status === 'Sent'
+                        ? 'Test Email Delivered to Inbox via Resend Cloud API!'
+                        : testResult.status === 'Simulated'
+                        ? 'Logged in Sent Email Logs (Simulated Mode — Resend Sandbox / Domain Notice)'
+                        : 'Delivery Failure'}
+                    </h4>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setActiveTab('logs')}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 cursor-pointer"
+                    >
+                      <History className="w-3 h-3" />
+                      View in Sent Email Logs ({logs.length})
+                    </button>
+                    <a
+                      href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+                        testEmail.trim()
+                      )}&su=${encodeURIComponent(
+                        'NexCRM Auto Email Verification'
+                      )}&body=${encodeURIComponent(
+                        'Hello,\n\nThis is a verification test from your NexCRM Auto Email Configuration panel.\n\nWarm regards,\nNexInt AI Automation Engine'
+                      )}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-indigo-600 hover:bg-indigo-700 text-white"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                      Send via Gmail Web
+                    </a>
+                  </div>
                 </div>
 
                 <div className="mt-2.5 space-y-1 text-xs text-slate-700 dark:text-slate-300 font-mono">
                   <div>
                     <span className="font-semibold text-slate-500">Transport:</span> {testResult.provider}
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-500">Delivery Status:</span> {testResult.status}
                   </div>
                   <div>
                     <span className="font-semibold text-slate-500">Latency:</span> {testResult.latencyMs}ms
@@ -600,8 +650,20 @@ export const AutoEmailPage: React.FC<AutoEmailPageProps> = () => {
                     </div>
                   )}
                   {testResult.error && (
-                    <div className="text-rose-600 dark:text-rose-400 font-sans mt-2">
-                      <span className="font-bold">Error Diagnosis:</span> {testResult.error}
+                    <div className="text-amber-800 dark:text-amber-300 font-sans mt-2 p-2.5 rounded-lg bg-amber-100/70 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800/70">
+                      <span className="font-bold">Resend Cloud API Notice:</span> {testResult.error}
+                      <div className="text-[11px] mt-1 text-slate-600 dark:text-slate-400">
+                        Note: On Resend&apos;s free sandbox tier (<code className="font-mono">onboarding@resend.dev</code>), Resend only delivers to the email address registered on your Resend account until you verify your custom domain (<code className="font-mono">{mailFrom.split('@')[1] || 'nexintai.com'}</code>) at{' '}
+                        <a
+                          href="https://resend.com/domains"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline font-semibold text-indigo-600 dark:text-indigo-400"
+                        >
+                          resend.com/domains
+                        </a>
+                        .
+                      </div>
                     </div>
                   )}
                 </div>

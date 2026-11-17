@@ -38,8 +38,8 @@ const resourceSchema = z.object({
   department: z.enum(RESOURCE_DEPARTMENTS).default('Engineering'),
   seniority: z.enum(RESOURCE_SENIORITIES).default('Senior'),
   skills: z.string().optional().default(''),
-  total_capacity: z.number().min(10).max(100).default(100),
-  hourly_rate: z.number().min(0).default(85),
+  total_capacity: z.coerce.number().min(10).max(100).default(100),
+  hourly_rate: z.coerce.number().min(0).default(85),
   on_leave: z.boolean().optional().default(false),
   notes: z.string().optional().default(''),
 });
@@ -48,7 +48,7 @@ const assignmentSchema = z.object({
   resource_id: z.string().min(1, 'Resource is required'),
   project_id: z.string().min(1, 'Project is required'),
   assignment_role: z.string().min(2, 'Project role is required'),
-  allocation_pct: z.number().min(5).max(100).default(50),
+  allocation_pct: z.coerce.number().min(5).max(100).default(50),
   start_date: z.string().min(1, 'Start date is required'),
   end_date: z.string().min(1, 'End date is required'),
   status: z.enum(ASSIGNMENT_STATUSES).default('Active'),
@@ -58,11 +58,12 @@ const assignmentSchema = z.object({
 function enrichResourceAvailability(resource: any) {
   const assignments = Array.isArray(resource.assignments) ? resource.assignments : [];
   const activeAssignments = assignments.filter((a: any) => a.status === 'Active');
-  const allocatedPct = activeAssignments.reduce(
+  const rawAllocatedPct = activeAssignments.reduce(
     (sum: number, a: any) => sum + Number(a.allocation_pct || 0),
     0
   );
   const totalCap = Number(resource.total_capacity || 100);
+  const allocatedPct = Math.min(totalCap, rawAllocatedPct);
   const availablePct = resource.on_leave ? 0 : Math.max(0, totalCap - allocatedPct);
 
   let availability_status: 'Available' | 'Partially Available' | 'Fully Booked' | 'On Leave' =
@@ -298,6 +299,10 @@ resourcesRouter.post('/assignments', async (req: AuthRequest, res: Response) => 
   }
 
   const data = parsed.data;
+  if (new Date(data.end_date) < new Date(data.start_date)) {
+    res.status(400).json({ error: 'End Date cannot be earlier than Start Date.' });
+    return;
+  }
   const resource = await prisma.resource.findUnique({ where: { id: data.resource_id } });
   if (!resource) {
     res.status(404).json({ error: 'Resource not found' });

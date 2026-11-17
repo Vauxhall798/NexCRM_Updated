@@ -952,6 +952,32 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
     }
   };
 
+  // Ensure #hash navigation links inside iframe srcDoc scroll within the proposal instead of loading parent CRM URL
+  const safeProposalSrcDoc = React.useMemo(() => {
+    if (!htmlProposal) return '';
+    const hashScrollScript = `<script>
+      document.addEventListener('click', function(e) {
+        var anchor = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
+        if (!anchor) return;
+        var hash = anchor.getAttribute('href');
+        if (hash && hash.startsWith('#')) {
+          e.preventDefault();
+          var targetEl = document.querySelector(hash);
+          if (targetEl && targetEl.scrollIntoView) {
+            targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        }
+      });
+    </script>`;
+    if (htmlProposal.includes("a[href^=\"#\"]")) {
+      return htmlProposal;
+    }
+    if (htmlProposal.includes('</body>')) {
+      return htmlProposal.replace('</body>', `${hashScrollScript}</body>`);
+    }
+    return `${htmlProposal}${hashScrollScript}`;
+  }, [htmlProposal]);
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -1770,7 +1796,7 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
                 <div className="bg-slate-100 p-3">
                   <iframe
                     title="NexInt AI Interactive HTML Proposal Preview"
-                    srcDoc={htmlProposal}
+                    srcDoc={safeProposalSrcDoc}
                     className="w-full h-[640px] rounded-xl bg-white border border-slate-200 shadow-xs"
                   />
                 </div>
@@ -1779,7 +1805,7 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
               <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 p-3">
                 <iframe
                   title="HTML Proposal Standalone Interactive Artifact"
-                  srcDoc={htmlProposal}
+                  srcDoc={safeProposalSrcDoc}
                   className="w-full h-[680px] rounded-xl bg-white border border-slate-200 shadow-xs"
                 />
               </div>
@@ -1931,7 +1957,7 @@ export const ProposalsPage: React.FC<ProposalsPageProps> = () => {
         <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 p-2">
           <iframe
             title="Fullscreen Interactive HTML Proposal"
-            srcDoc={htmlProposal}
+            srcDoc={safeProposalSrcDoc}
             className="w-full h-[76vh] rounded-lg bg-white border border-slate-200"
           />
         </div>

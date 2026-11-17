@@ -62,7 +62,12 @@ automationRouter.get('/due', async (_req: AuthRequest, res: Response) => {
 // POST /api/automation/generate-draft — Generate AI follow-up email draft
 automationRouter.post('/generate-draft', async (req: AuthRequest, res: Response) => {
   try {
-    const { lead_id, template_type = 'proposal_checkin', custom_notes = '' } = req.body || {};
+    const {
+      lead_id,
+      template_type = 'proposal_checkin',
+      custom_notes = '',
+      variation_index = 0,
+    } = req.body || {};
 
     if (!lead_id) {
       res.status(400).json({ error: 'lead_id is required' });
@@ -75,6 +80,7 @@ automationRouter.post('/generate-draft', async (req: AuthRequest, res: Response)
       customNotes: String(custom_notes || ''),
       senderName: req.user?.name,
       senderRole: req.user?.role,
+      variationIndex: Number(variation_index || 0),
     });
 
     res.json({ draft });
@@ -111,7 +117,7 @@ automationRouter.post('/send-email', async (req: AuthRequest, res: Response) => 
       nextFollowupDate: next_followup_date,
       sentByUserId: req.user?.id,
       sentByUserName: req.user?.name,
-      templateType,
+      templateType: template_type ? String(template_type) : 'proposal_checkin',
     });
 
     res.json({
@@ -309,18 +315,43 @@ automationRouter.post('/test-email', async (req: AuthRequest, res: Response) => 
     }
 
     const start = Date.now();
+    const subjectLine = `NexCRM Auto Email Verification — ${new Date().toLocaleTimeString('en-US')}`;
+    const bodyText =
+      `Hello,\n\nThis is a verification test from your NexCRM Auto Email Configuration panel.\n\n` +
+      `Timestamp: ${new Date().toISOString()}\n` +
+      `Sender: ${process.env.MAIL_FROM || 'info@nexintai.com'}\n` +
+      `Active Transport: Resend Cloud API\n\n` +
+      `If you received this message, your CRM email pipeline is completely configured and ready for automated lead check-ins!\n\n` +
+      `Warm regards,\nNexInt AI Automation Engine`;
+
     const result = await sendCrmEmail({
       to: recipient.trim(),
       toName: 'NexCRM Admin',
-      subject: `NexCRM Auto Email Verification — ${new Date().toLocaleTimeString('en-US')}`,
-      text: `Hello,\n\nThis is a verification test from your NexCRM Auto Email Configuration panel.\n\n` +
-            `Timestamp: ${new Date().toISOString()}\n` +
-            `Sender: ${process.env.MAIL_FROM || 'info@nexintai.com'}\n` +
-            `Active Transport: Resend / SMTP / CRM Mailer\n\n` +
-            `If you received this message, your CRM email pipeline is completely configured and ready for automated lead check-ins!\n\n` +
-            `Warm regards,\nNexInt AI Automation Engine`,
+      subject: subjectLine,
+      text: bodyText,
     });
     const latencyMs = Date.now() - start;
+
+    let validUserId: string | null = null;
+    if (req.user?.id) {
+      const userExists = await prisma.user.findUnique({ where: { id: req.user.id } });
+      if (userExists) validUserId = userExists.id;
+    }
+
+    const emailLog = await prisma.emailLog.create({
+      data: {
+        lead_id: null,
+        recipient_email: recipient.trim(),
+        recipient_name: 'Deliverability Test Recipient',
+        subject: subjectLine,
+        body: bodyText,
+        status: result.status,
+        provider: result.provider,
+        error_message: result.error || '',
+        sent_by: validUserId,
+        sent_at: new Date().toISOString(),
+      },
+    });
 
     res.json({
       success: result.success,
@@ -330,6 +361,7 @@ automationRouter.post('/test-email', async (req: AuthRequest, res: Response) => 
       error: result.error,
       latencyMs,
       mailtoUrl: result.mailtoUrl,
+      email_log: emailLog,
     });
   } catch (err: any) {
     console.error('Error sending test email:', err);

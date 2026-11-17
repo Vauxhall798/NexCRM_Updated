@@ -2494,16 +2494,22 @@ export const ProjectsPage: React.FC<ProjectsPageProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Progress % ({form.progress}%)
+                Progress ({Math.min(100, Math.max(0, Number(form.progress || 0)))}%)
               </label>
               <input
                 type="number"
                 min={0}
                 max={100}
                 value={form.progress}
-                onChange={(e) =>
-                  setForm({ ...form, progress: e.target.value, progress_override: true })
-                }
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  if (raw === '') {
+                    setForm({ ...form, progress: '', progress_override: true });
+                    return;
+                  }
+                  const clamped = Math.min(100, Math.max(0, Math.round(Number(raw) || 0)));
+                  setForm({ ...form, progress: String(clamped), progress_override: true });
+                }}
                 className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
             </div>

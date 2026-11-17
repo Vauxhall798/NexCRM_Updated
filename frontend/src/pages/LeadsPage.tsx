@@ -27,12 +27,14 @@ import {
   formatCurrency,
   formatDate,
   formatDateTime,
+  formatPhoneInput,
   getLeadStatusBadge,
   isFollowupOverdue,
   LEAD_SOURCES,
   LEAD_STATUSES,
   SERVICE_TYPES,
   toInputDate,
+  validatePhoneNumber,
 } from '../lib/utils';
 import { Modal, Drawer } from '../components/ui/Modal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -271,6 +273,14 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
       return;
     }
 
+    const phoneValidation = validatePhoneNumber(form.phone);
+    if (!phoneValidation.valid) {
+      setFormError(
+        phoneValidation.message || 'Please enter a valid 10-digit phone number (e.g., 98765 43210).'
+      );
+      return;
+    }
+
     const budgetNum = Number(form.budget);
     if (Number.isNaN(budgetNum) || budgetNum < 0) {
       setFormError('Estimated budget must be a valid non-negative number.');
@@ -283,7 +293,7 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
         name: form.name.trim(),
         company: form.company.trim(),
         email: form.email.trim(),
-        phone: form.phone.trim(),
+        phone: phoneValidation.formatted,
         source: form.source,
         service: form.service,
         budget: budgetNum,
@@ -647,46 +657,54 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse min-w-[800px]">
+              <table className="w-full text-left border-collapse min-w-[960px]">
                 <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40 text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                    <th className="py-3.5 px-4">
+                  <tr className="border-b border-slate-200 dark:border-slate-800 divide-x divide-slate-200/70 dark:divide-slate-800 bg-slate-50/90 dark:bg-slate-800/60 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">
+                    <th className="py-3.5 px-4 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => toggleSort('name')}
-                        className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                       >
-                        Lead &amp; Company
-                        <ArrowUpDown className="w-3 h-3" />
+                        <span>LEAD &amp; COMPANY</span>
+                        <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
                       </button>
                     </th>
-                    <th className="py-3.5 px-4">Service &amp; Source</th>
-                    <th className="py-3.5 px-4">
+                    <th className="py-3.5 px-4 whitespace-nowrap text-[11px] font-bold uppercase tracking-wider">
+                      SERVICE &amp; SOURCE
+                    </th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => toggleSort('budget')}
-                        className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                       >
-                        Est. Budget
-                        <ArrowUpDown className="w-3 h-3" />
+                        <span>EST. BUDGET</span>
+                        <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
                       </button>
                     </th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4">Owner</th>
-                    <th className="py-3.5 px-4">
+                    <th className="py-3.5 px-4 whitespace-nowrap text-[11px] font-bold uppercase tracking-wider">
+                      STATUS
+                    </th>
+                    <th className="py-3.5 px-4 whitespace-nowrap text-[11px] font-bold uppercase tracking-wider">
+                      OWNER
+                    </th>
+                    <th className="py-3.5 px-4 whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => toggleSort('next_followup')}
-                        className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-white"
+                        className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                       >
-                        Next Follow-up
-                        <ArrowUpDown className="w-3 h-3" />
+                        <span>NEXT FOLLOW-UP</span>
+                        <ArrowUpDown className="w-3.5 h-3.5 shrink-0" />
                       </button>
                     </th>
-                    <th className="py-3.5 px-4 text-right">Actions</th>
+                    <th className="py-3.5 px-4 text-right whitespace-nowrap text-[11px] font-bold uppercase tracking-wider">
+                      ACTIONS
+                    </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-200/70 dark:divide-slate-800 text-sm">
+                <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800 text-sm">
                   {paginatedLeads.map((lead) => {
                     const overdue =
                       lead.status !== 'Converted' &&
@@ -696,7 +714,7 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
                     return (
                       <tr
                         key={lead.id}
-                        className={`transition-colors ${
+                        className={`divide-x divide-slate-100 dark:divide-slate-800/70 transition-colors ${
                           overdue
                             ? 'bg-rose-50/40 dark:bg-rose-950/20 hover:bg-rose-50/80 dark:hover:bg-rose-950/30'
                             : 'hover:bg-slate-50/80 dark:hover:bg-slate-800/40'
@@ -942,16 +960,21 @@ export const LeadsPage: React.FC<LeadsPageProps> = ({
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                Phone Number *
+                Phone Number (10 digits, e.g. 98765 43210) *
               </label>
               <input
-                type="text"
+                type="tel"
                 required
                 value={form.phone}
-                onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                placeholder="+1 (415) 555-0190"
+                onChange={(e) => setForm({ ...form, phone: formatPhoneInput(e.target.value) })}
+                placeholder="98765 43210"
                 className="w-full px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-slate-100"
               />
+              {form.phone.trim().length > 0 && !validatePhoneNumber(form.phone).valid && (
+                <p className="text-[11px] text-rose-600 dark:text-rose-400 mt-1">
+                  {validatePhoneNumber(form.phone).message}
+                </p>
+              )}
             </div>
 
             <div>

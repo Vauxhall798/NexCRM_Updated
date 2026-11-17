@@ -14,7 +14,7 @@ const clientInputSchema = z.object({
   company: z.string().min(1, 'Company name is required'),
   contact_name: z.string().min(1, 'Primary contact name is required'),
   email: z.string().email('Valid email is required'),
-  phone: z.string().min(3, 'Phone number is required'),
+  phone: z.string().min(10, 'Phone number is required').phone('Phone number must contain at least 10 digits'),
   address: z.string().optional().default(''),
   website: z.string().optional().default(''),
   industry: z.string().optional().default(''),

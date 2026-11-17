@@ -403,75 +403,81 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
             No resources found matching &quot;{resourceSearch}&quot;.
           </div>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800">
-            <table className="w-full text-xs text-left">
-              <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-500 dark:text-slate-400 font-semibold border-b border-slate-200 dark:border-slate-800">
-                <tr>
-                  <th className="py-3 px-3.5 w-12 text-center">Rank</th>
-                  <th className="py-3 px-3.5">Resource / Rep</th>
-                  <th className="py-3 px-3.5">Role</th>
-                  <th className="py-3 px-3 text-center">Assigned</th>
-                  <th className="py-3 px-3 text-center text-emerald-600 font-bold">Converted</th>
-                  <th className="py-3 px-3 text-center text-rose-500">Lost</th>
-                  <th className="py-3 px-3 text-center text-amber-500">In Pipeline</th>
-                  <th className="py-3 px-3.5 w-36">Conversion Rate</th>
-                  <th className="py-3 px-3.5 text-right font-bold text-slate-900 dark:text-slate-100">
+          <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-800 shadow-2xs">
+            <table className="w-full text-xs text-left border-collapse min-w-[920px]">
+              <thead className="bg-slate-100/90 dark:bg-slate-800/80 text-slate-600 dark:text-slate-300 text-[11px] font-bold uppercase tracking-wider border-b border-slate-200 dark:border-slate-700">
+                <tr className="divide-x divide-slate-200 dark:divide-slate-700">
+                  <th className="py-3.5 px-3.5 w-14 text-center whitespace-nowrap">Rank</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Resource / Rep</th>
+                  <th className="py-3.5 px-4 whitespace-nowrap">Role</th>
+                  <th className="py-3.5 px-3.5 text-center whitespace-nowrap">Assigned</th>
+                  <th className="py-3.5 px-3.5 text-center text-emerald-700 dark:text-emerald-400 whitespace-nowrap bg-emerald-50/50 dark:bg-emerald-950/20">
+                    Converted
+                  </th>
+                  <th className="py-3.5 px-3.5 text-center text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                    Lost
+                  </th>
+                  <th className="py-3.5 px-3.5 text-center text-amber-600 dark:text-amber-400 whitespace-nowrap">
+                    In Pipeline
+                  </th>
+                  <th className="py-3.5 px-4 w-40 whitespace-nowrap">Conversion Rate</th>
+                  <th className="py-3.5 px-4 text-right font-extrabold text-slate-900 dark:text-slate-100 whitespace-nowrap bg-indigo-50/40 dark:bg-indigo-950/20">
                     Won Value (₹)
                   </th>
-                  <th className="py-3 px-3.5 text-right">Avg Deal</th>
+                  <th className="py-3.5 px-4 text-right whitespace-nowrap">Avg Deal</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              <tbody className="divide-y divide-slate-200/80 dark:divide-slate-800">
                 {filteredResources.map((res: ResourcePerformanceItem, idx: number) => {
                   const isTopRank = idx === 0 && res.converted_leads > 0;
                   return (
                     <tr
                       key={res.resource_name}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors"
+                      className="divide-x divide-slate-200/70 dark:divide-slate-800 hover:bg-slate-50/90 dark:hover:bg-slate-800/50 transition-colors"
                     >
-                      <td className="py-3 px-3.5 text-center">
+                      <td className="py-3.5 px-3.5 text-center whitespace-nowrap">
                         {isTopRank ? (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-extrabold text-[11px] shadow-2xs">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300 font-extrabold text-[11px] shadow-2xs">
                             🥇
                           </span>
                         ) : idx === 1 && res.converted_leads > 0 ? (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px]">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-[11px]">
                             🥈
                           </span>
                         ) : idx === 2 && res.converted_leads > 0 ? (
-                          <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-bold text-[11px]">
+                          <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-950/60 text-orange-700 dark:text-orange-300 font-bold text-[11px]">
                             🥉
                           </span>
                         ) : (
-                          <span className="text-slate-400 font-mono text-[11px]">{idx + 1}</span>
+                          <span className="text-slate-500 font-mono font-semibold text-[11px]">{idx + 1}</span>
                         )}
                       </td>
-                      <td className="py-3 px-3.5 font-bold text-slate-900 dark:text-slate-100">
+                      <td className="py-3.5 px-4 font-bold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                         {res.resource_name}
                       </td>
-                      <td className="py-3 px-3.5 text-slate-500 dark:text-slate-400">
+                      <td className="py-3.5 px-4 text-slate-600 dark:text-slate-400 whitespace-nowrap">
                         {res.role}
                       </td>
-                      <td className="py-3 px-3 text-center font-semibold text-slate-700 dark:text-slate-300">
+                      <td className="py-3.5 px-3.5 text-center font-semibold text-slate-700 dark:text-slate-300 whitespace-nowrap">
                         {res.assigned_leads}
                       </td>
-                      <td className="py-3 px-3 text-center font-black text-emerald-600 dark:text-emerald-400">
+                      <td className="py-3.5 px-3.5 text-center font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50/30 dark:bg-emerald-950/10 whitespace-nowrap">
                         {res.converted_leads}
                       </td>
-                      <td className="py-3 px-3 text-center text-rose-500 font-medium">
+                      <td className="py-3.5 px-3.5 text-center text-rose-600 dark:text-rose-400 font-semibold whitespace-nowrap">
                         {res.lost_leads}
                       </td>
-                      <td className="py-3 px-3 text-center text-amber-600 dark:text-amber-400 font-medium">
+                      <td className="py-3.5 px-3.5 text-center text-amber-600 dark:text-amber-400 font-semibold whitespace-nowrap">
                         {res.in_progress_leads}
                       </td>
-                      <td className="py-3 px-3.5">
+                      <td className="py-3.5 px-4">
                         <div className="space-y-1">
                           <div className="flex justify-between text-[11px] font-bold">
                             <span className={res.conversion_rate_pct >= 50 ? 'text-emerald-600' : 'text-slate-600 dark:text-slate-300'}>
                               {res.conversion_rate_pct}%
                             </span>
                           </div>
-                          <div className="w-full h-1.5 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
+                          <div className="w-full h-1.5 rounded-full bg-slate-200/80 dark:bg-slate-800 overflow-hidden">
                             <div
                               className={`h-full rounded-full ${
                                 res.conversion_rate_pct >= 60
@@ -485,7 +491,7 @@ export const ReportsPage: React.FC<ReportsPageProps> = ({ onNavigate }) => {
                           </div>
                         </div>
                       </td>
-                      <td className="py-3 px-3.5 text-right font-black text-indigo-950 dark:text-indigo-300">
+                      <td className="py-3.5 px-4 text-right font-black text-indigo-950 dark:text-indigo-300 bg-indigo-50/20 dark:bg-indigo-950/10 whitespace-nowrap">
                         {formatCurrency(res.total_deal_value_won)}
                       </td>
                       <td className="py-3 px-3.5 text-right text-slate-600 dark:text-slate-400">

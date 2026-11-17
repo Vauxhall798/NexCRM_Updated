@@ -107,6 +107,10 @@ timelineRouter.post('/', async (req: AuthRequest, res: Response) => {
   }
 
   const data = parsed.data;
+  if (data.end_date && new Date(data.end_date) < new Date(data.start_date)) {
+    res.status(400).json({ error: 'End Date cannot be earlier than Start Date.' });
+    return;
+  }
   const existingCount = await prisma.timelineEntry.count({
     where: { project_id: data.project_id },
   });
